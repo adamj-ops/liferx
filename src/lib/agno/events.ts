@@ -38,6 +38,7 @@ export interface HubEventDelta {
 export interface HubEventToolStart {
   type: 'tool_start';
   tool: string;
+  args?: unknown;
 }
 
 /** Tool completed with result and optional explainability */
@@ -46,12 +47,19 @@ export interface HubEventToolResult {
   tool: string;
   explainability?: Record<string, unknown>;
   data?: unknown;
+  errorText?: string;
 }
 
 /** Final response wrapping the full AgentResponse contract */
 export interface HubEventFinal {
   type: 'final';
-  payload: AgentResponse;
+  /**
+   * Full contract payload (legacy / hub-native).
+   * Some runtimes emit top-level `next_actions` + `assumptions` instead.
+   */
+  payload?: AgentResponse;
+  next_actions?: string[];
+  assumptions?: string[];
 }
 
 /**
@@ -74,7 +82,23 @@ export function isHubEvent(obj: unknown): obj is HubEvent {
     case 'tool_result':
       return typeof event.tool === 'string';
     case 'final':
-      return event.payload !== undefined && typeof event.payload === 'object';
+      // Accept either the full payload or the UI-facing summary fields.
+      if (event.payload !== undefined) {
+        return typeof event.payload === 'object';
+      }
+      if (event.next_actions !== undefined) {
+        return (
+          Array.isArray(event.next_actions) &&
+          event.next_actions.every((x) => typeof x === 'string')
+        );
+      }
+      if (event.assumptions !== undefined) {
+        return (
+          Array.isArray(event.assumptions) &&
+          event.assumptions.every((x) => typeof x === 'string')
+        );
+      }
+      return true;
     default:
       return false;
   }

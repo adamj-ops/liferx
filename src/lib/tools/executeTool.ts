@@ -16,6 +16,17 @@ export async function executeTool(
   args: unknown,
   context: ToolContext
 ): Promise<ToolResponse> {
+  // Enforce org_id at executor boundary
+  if (!context.org_id) {
+    return {
+      success: false,
+      error: {
+        code: 'MISSING_ORG_ID',
+        message: 'org_id is required for all tool executions',
+      },
+    };
+  }
+  
   const tool = getTool(toolName);
   
   if (!tool) {

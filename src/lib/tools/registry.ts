@@ -17,6 +17,8 @@ import { interviewsTagTheme } from './implementations/interviews-tag-theme';
 import { outreachLogEvent } from './implementations/outreach-log-event';
 import { followupsCreate } from './implementations/followups-create';
 import { scoringScoreGuest } from './implementations/scoring-score-guest';
+import { themesUpsertTheme } from './implementations/themes-upsert-theme';
+import { themesLinkToInterview } from './implementations/themes-link-to-interview';
 
 /**
  * Registry of all available tools
@@ -49,6 +51,10 @@ registerTool(followupsCreate);
 
 // Scoring tools
 registerTool(scoringScoreGuest);
+
+// Theme tools
+registerTool(themesUpsertTheme);
+registerTool(themesLinkToInterview);
 
 /**
  * Get a tool by name

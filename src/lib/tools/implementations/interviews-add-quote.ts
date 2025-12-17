@@ -1,31 +1,35 @@
 /**
  * Tool: interviews.add_quote
- * Adds a notable quote from an interview
+ * Adds a notable quote from an interview with semantic metadata.
+ * 
+ * Validates that quotes are direct (not paraphrased) and meaningful.
  */
 
 import { ToolDefinition, ToolContext, ToolResponse } from '../types';
-import { createServerClient } from '../../supabase/server';
+import { createServiceClient } from '../../supabase/server';
 
 interface AddQuoteArgs {
   interview_id: string;
-  guest_id: string;
   quote: string;
-  pillar?: 'health' | 'wealth' | 'connection';
-  emotional_insight?: string;
-  context?: string;
-  is_highlight?: boolean;
-  tags?: string[];
-  timestamp_start?: number;
-  timestamp_end?: number;
+  topic: string;
+  pillar: 'Health' | 'Wealth' | 'Connection';
+  tone: 'inspiring' | 'tactical' | 'reflective';
 }
+
+// Common paraphrase patterns to reject
+const PARAPHRASE_PATTERNS = [
+  /^(they|he|she|it)\s+(said|believes?|thinks?|mentioned)/i,
+  /^according to/i,
+  /^(the guest|the speaker)\s/i,
+];
 
 export const interviewsAddQuote: ToolDefinition<AddQuoteArgs> = {
   name: 'interviews.add_quote',
-  description: 'Add a notable quote from an interview',
-  version: '1.0.0',
+  description: 'Add a direct quote from an interview with topic and tone metadata',
+  version: '2.0.0',
   
   async execute(args: AddQuoteArgs, context: ToolContext): Promise<ToolResponse> {
-    const supabase = createServerClient();
+    const supabase = createServiceClient();
     
     if (!context.allowWrites) {
       return {
@@ -35,6 +39,42 @@ export const interviewsAddQuote: ToolDefinition<AddQuoteArgs> = {
           message: 'Write operations are not permitted in this context',
         },
       };
+    }
+    
+    // Validation: Reject empty after trim
+    const trimmedQuote = args.quote.trim();
+    if (!trimmedQuote) {
+      return {
+        success: false,
+        error: {
+          code: 'EMPTY_QUOTE',
+          message: 'Quote cannot be empty',
+        },
+      };
+    }
+    
+    // Validation: Must contain at least one space (not single-word junk)
+    if (!trimmedQuote.includes(' ')) {
+      return {
+        success: false,
+        error: {
+          code: 'SINGLE_WORD',
+          message: 'Quote must be more than a single word',
+        },
+      };
+    }
+    
+    // Validation: Reject common paraphrase patterns
+    for (const pattern of PARAPHRASE_PATTERNS) {
+      if (pattern.test(trimmedQuote)) {
+        return {
+          success: false,
+          error: {
+            code: 'PARAPHRASED',
+            message: 'Quote appears to be paraphrased, not a direct quote',
+          },
+        };
+      }
     }
     
     // Verify interview exists
@@ -58,17 +98,13 @@ export const interviewsAddQuote: ToolDefinition<AddQuoteArgs> = {
       .from('interview_quotes')
       .insert({
         interview_id: args.interview_id,
-        guest_id: args.guest_id,
-        quote: args.quote,
-        pillar: args.pillar,
-        emotional_insight: args.emotional_insight,
-        context: args.context,
-        is_highlight: args.is_highlight ?? false,
-        tags: args.tags ?? [],
-        timestamp_start: args.timestamp_start,
-        timestamp_end: args.timestamp_end,
+        quote: trimmedQuote,
+        pillar: args.pillar.toLowerCase(),  // Store lowercase for consistency
+        topic: args.topic,
+        tone: args.tone,
+        org_id: context.org_id,
       })
-      .select()
+      .select('id')
       .single();
     
     if (error) {
@@ -80,13 +116,14 @@ export const interviewsAddQuote: ToolDefinition<AddQuoteArgs> = {
     
     return {
       success: true,
-      data: { ...data, interview_title: interview.title },
+      data: {
+        quote_id: data.id,
+      },
       explainability: {
-        action: 'added_quote',
+        topic: args.topic,
         pillar: args.pillar,
-        is_highlight: args.is_highlight ?? false,
-        has_emotional_insight: !!args.emotional_insight,
-        tags_count: args.tags?.length ?? 0,
+        tone: args.tone,
+        reason: `Quote is reusable because it captures a distinct perspective on ${args.topic}`,
       },
       writes: [
         {

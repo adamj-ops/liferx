@@ -8,6 +8,7 @@ interface ToolExecuteRequestBody {
   toolName: string;
   args?: unknown;
   context?: {
+    org_id?: string;
     session_id?: string;
     user_id?: string;
     allowWrites?: boolean;
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Build context
     const context: ToolContext = {
+      org_id: body.context?.org_id ?? process.env.DEFAULT_ORG_ID ?? 'operator',
       session_id: body.context?.session_id,
       user_id: body.context?.user_id,
       allowWrites: body.context?.allowWrites ?? false,

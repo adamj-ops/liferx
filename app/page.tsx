@@ -1,588 +1,337 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import type { HubEvent, ChatMessage } from '@/lib/agno/types';
+import { useCallback, useMemo } from 'react';
+import {
+  useChatStore,
+  useMessages,
+  useIsLoading,
+  useToolParts,
+  useShowToolPanel,
+} from '@/lib/chat/store';
+import { sendMessage } from '@/lib/chat/send-message';
+import { AIDevTools } from '@/components/ai-devtools';
+import { ThemeToggle } from '@/components/theme-toggle';
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from '@/components/ai-elements/conversation';
+import {
+  PromptInput,
+  PromptInputBody,
+  PromptInputTextarea,
+  PromptInputSubmit,
+} from '@/components/ai-elements/prompt-input';
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from '@/components/ai-elements/tool';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { 
+  Sparkles, 
+  RotateCcw, 
+  ChevronRight,
+  Wrench,
+  User,
+  Bot,
+} from 'lucide-react';
 
 export default function BrainChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => uuidv4());
-  const [toolActivity, setToolActivity] = useState<{ tool: string; status: 'running' | 'done' }[]>([]);
-  const [showToolPanel, setShowToolPanel] = useState(false);
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messages = useMessages();
+  const isLoading = useIsLoading();
+  const toolParts = useToolParts();
+  const showToolPanel = useShowToolPanel();
+  const { sessionId, toggleToolPanel, clearMessages } = useChatStore();
 
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+  const chatHistory = useMemo(
+    () =>
+      messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      })),
+    [messages]
+  );
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
-
-    const userMessage: ChatMessage = {
-      id: uuidv4(),
-      role: 'user',
-      content: input.trim(),
-      timestamp: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-    setToolActivity([]);
-
-    const assistantMessageId = uuidv4();
-    const assistantMessage: ChatMessage = {
-      id: assistantMessageId,
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString(),
-    };
-    setMessages((prev) => [...prev, assistantMessage]);
-
-    try {
-      const response = await fetch('/api/assistant/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          messages: [...messages, userMessage].map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        }),
+  const handleSendMessage = useCallback(
+    async (text: string) => {
+      await sendMessage(text, {
+        sessionId,
+        chatHistory,
       });
-
-      if (!response.ok) {
-        throw new Error(`Request failed: ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No response stream');
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6);
-            if (data === '[DONE]') continue;
-
-            try {
-              const event: HubEvent = JSON.parse(data);
-              handleHubEvent(event, assistantMessageId);
-            } catch {
-              // Ignore parse errors for malformed chunks
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantMessageId
-            ? { ...m, content: 'An error occurred. Please try again.' }
-            : m
-        )
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleHubEvent = (event: HubEvent, messageId: string) => {
-    switch (event.type) {
-      case 'delta':
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === messageId
-              ? { ...m, content: m.content + event.content }
-              : m
-          )
-        );
-        break;
-
-      case 'tool_start':
-        setToolActivity((prev) => [...prev, { tool: event.tool, status: 'running' }]);
-        setShowToolPanel(true);
-        break;
-
-      case 'tool_result':
-        setToolActivity((prev) =>
-          prev.map((t) =>
-            t.tool === event.tool ? { ...t, status: 'done' } : t
-          )
-        );
-        break;
-
-      case 'final':
-        if (event.next_actions?.length) {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === messageId
-                ? { ...m, nextActions: event.next_actions, assumptions: event.assumptions }
-                : m
-            )
-          );
-        }
-        break;
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit(e);
-    }
-  };
+    },
+    [sessionId, chatHistory]
+  );
 
   return (
-    <div className="chat-container">
-      <header className="chat-header">
-        <div className="header-content">
-          <h1 className="header-title">LifeRX Brain</h1>
-          <span className="header-badge">v0.1</span>
-        </div>
-        {toolActivity.length > 0 && (
-          <button
-            className="tool-toggle"
-            onClick={() => setShowToolPanel(!showToolPanel)}
-          >
-            {showToolPanel ? 'Hide' : 'Show'} Tools ({toolActivity.length})
-          </button>
-        )}
-      </header>
-
-      <div className="chat-body">
-        <div className="messages-container">
-          {messages.length === 0 && (
-            <div className="empty-state">
-              <div className="empty-icon">⚡</div>
-              <h2>LifeRX Brain</h2>
-              <p>Your operator control plane. Ask about guests, newsletters, outreach, or any LifeRX operation.</p>
+    <div className="flex h-screen flex-col">
+      {/* ================================================================
+          Header
+          ================================================================ */}
+      <header className="relative z-10 border-b border-border/50 bg-card/80 backdrop-blur-xl">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+          {/* Brand */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 dark:bg-primary/20">
+              <Sparkles className="h-5 w-5 text-primary" />
             </div>
-          )}
-
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`message ${message.role} animate-fade-in`}
-            >
-              <div className="message-content">
-                {message.content || (
-                  <span className="thinking animate-pulse">Thinking...</span>
-                )}
-              </div>
-              {message.nextActions && message.nextActions.length > 0 && (
-                <div className="next-actions">
-                  <span className="next-actions-label">Next actions:</span>
-                  <ul>
-                    {message.nextActions.map((action, i) => (
-                      <li key={i}>{action}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {message.assumptions && message.assumptions.length > 0 && (
-                <div className="assumptions">
-                  <span className="assumptions-label">Assumptions:</span>
-                  <ul>
-                    {message.assumptions.map((assumption, i) => (
-                      <li key={i}>{assumption}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
-
-        {showToolPanel && toolActivity.length > 0 && (
-          <div className="tool-panel">
-            <div className="tool-panel-header">Tool Activity</div>
-            <div className="tool-list">
-              {toolActivity.map((t, i) => (
-                <div key={i} className={`tool-item ${t.status}`}>
-                  <span className="tool-indicator" />
-                  <span className="tool-name">{t.tool}</span>
-                  <span className="tool-status">{t.status}</span>
-                </div>
-              ))}
+            <div>
+              <h1 className="font-display text-xl font-semibold tracking-tight text-foreground">
+                LifeRX Brain
+              </h1>
+              <p className="text-xs text-muted-foreground">Operator Control Plane</p>
             </div>
           </div>
-        )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-2">
+            {messages.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-2 text-muted-foreground hover:text-foreground"
+                onClick={clearMessages}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">New Chat</span>
+              </Button>
+            )}
+            {toolParts.length > 0 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 font-mono text-xs"
+                onClick={toggleToolPanel}
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                <span>{toolParts.length}</span>
+              </Button>
+            )}
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* ================================================================
+          Main Content
+          ================================================================ */}
+      <div className="mx-auto flex w-full max-w-5xl flex-1 overflow-hidden">
+        <main className="flex min-w-0 flex-1 flex-col">
+          <Conversation className="flex-1">
+            <ConversationContent className="px-6 py-8">
+              {/* Empty State */}
+              {messages.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 dark:bg-primary/20">
+                    <Sparkles className="h-8 w-8 text-primary" />
+                  </div>
+                  <h2 className="font-display text-2xl font-semibold text-foreground">
+                    Welcome to LifeRX Brain
+                  </h2>
+                  <p className="mt-2 max-w-md text-muted-foreground">
+                    Your intelligent operator control plane. Ask about guests, 
+                    newsletters, outreach, or any LifeRX operation.
+                  </p>
+                  
+                  {/* Quick Actions */}
+                  <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                    {[
+                      'Show me the newsletter SOP',
+                      'Who are our top guests?',
+                      'What themes are trending?',
+                      'Review outreach pipeline',
+                    ].map((prompt, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleSendMessage(prompt)}
+                        className={cn(
+                          'group flex items-center gap-2 rounded-xl border border-border/50 bg-card/50 px-4 py-3 text-left text-sm transition-all',
+                          'hover:border-primary/50 hover:bg-card hover:shadow-md',
+                          'dark:hover:shadow-primary/5',
+                          'animate-fade-in',
+                          `stagger-${i + 1}`
+                        )}
+                        style={{ opacity: 0 }}
+                      >
+                        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                        <span className="text-foreground">{prompt}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {/* Messages */}
+              {messages.map((message, index) => (
+                <div
+                  key={message.id}
+                  className={cn(
+                    'mb-6 animate-fade-in',
+                    message.role === 'user' ? 'flex justify-end' : ''
+                  )}
+                  style={{ animationDelay: `${index * 0.05}s` }}
+                >
+                  <div
+                    className={cn(
+                      'group relative max-w-[85%]',
+                      message.role === 'user' ? 'ml-12' : 'mr-12'
+                    )}
+                  >
+                    {/* Avatar */}
+                    <div
+                      className={cn(
+                        'absolute top-0 flex h-8 w-8 items-center justify-center rounded-lg',
+                        message.role === 'user'
+                          ? '-right-10 bg-primary/10 dark:bg-primary/20'
+                          : '-left-10 bg-secondary'
+                      )}
+                    >
+                      {message.role === 'user' ? (
+                        <User className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Bot className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+
+                    {/* Message Bubble */}
+                    <div
+                      className={cn(
+                        'rounded-2xl px-4 py-3',
+                        message.role === 'user'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'glass-card'
+                      )}
+                    >
+                      {message.content ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none">
+                          <p className="m-0 whitespace-pre-wrap leading-relaxed">
+                            {message.content}
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="typing-indicator flex items-center gap-1 py-1">
+                          <span />
+                          <span />
+                          <span />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Next Actions & Assumptions */}
+                    {message.role === 'assistant' &&
+                      (message.nextActions?.length || message.assumptions?.length) && (
+                        <div className="mt-3 space-y-3 animate-fade-in">
+                          {message.nextActions?.length ? (
+                            <div className="rounded-xl border border-primary/20 bg-primary/5 p-4 dark:bg-primary/10">
+                              <div className="mb-2 flex items-center gap-2">
+                                <ChevronRight className="h-4 w-4 text-primary" />
+                                <span className="font-mono text-xs font-medium uppercase tracking-wider text-primary">
+                                  Next Actions
+                                </span>
+                              </div>
+                              <ul className="space-y-1.5 pl-6">
+                                {message.nextActions.map((action, i) => (
+                                  <li
+                                    key={i}
+                                    className="text-sm text-foreground/80 before:mr-2 before:text-primary before:content-['→']"
+                                  >
+                                    {action}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+
+                          {message.assumptions?.length ? (
+                            <div className="rounded-xl border border-border/50 bg-muted/50 p-4">
+                              <div className="mb-2 font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                                Assumptions
+                              </div>
+                              <ul className="space-y-1 pl-4 text-sm text-muted-foreground">
+                                {message.assumptions.map((assumption, i) => (
+                                  <li key={i} className="list-disc">
+                                    {assumption}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                  </div>
+                </div>
+              ))}
+            </ConversationContent>
+
+            <ConversationScrollButton />
+          </Conversation>
+
+          {/* ================================================================
+              Input Area
+              ================================================================ */}
+          <div className="border-t border-border/50 bg-card/80 backdrop-blur-xl">
+            <div className="mx-auto max-w-3xl px-6 py-4">
+              <PromptInput
+                onSubmit={async ({ text }) => {
+                  await handleSendMessage(text);
+                }}
+              >
+                <PromptInputBody className="rounded-2xl border border-border/50 bg-background shadow-lg transition-shadow focus-within:border-primary/50 focus-within:shadow-xl dark:focus-within:shadow-primary/5">
+                  <PromptInputTextarea
+                    placeholder="Ask about guests, newsletters, outreach..."
+                    disabled={isLoading}
+                    className="min-h-[52px] resize-none border-0 bg-transparent px-4 py-3.5 text-foreground placeholder:text-muted-foreground focus:ring-0"
+                  />
+                  <PromptInputSubmit
+                    disabled={isLoading}
+                    status={isLoading ? 'submitted' : undefined}
+                    className="mr-2 rounded-xl bg-primary px-4 py-2 text-primary-foreground transition-all hover:bg-primary/90 disabled:opacity-50"
+                  />
+                </PromptInputBody>
+              </PromptInput>
+              <div className="mt-3 text-center text-xs text-muted-foreground">
+                Press <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Enter</kbd> to send, <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px]">Shift + Enter</kbd> for new line
+              </div>
+            </div>
+          </div>
+        </main>
+
+        {/* ================================================================
+            Tool Panel (Side)
+            ================================================================ */}
+        {showToolPanel && toolParts.length > 0 ? (
+          <aside className="hidden w-80 shrink-0 animate-slide-in-right border-l border-border/50 bg-card/50 backdrop-blur-xl md:block">
+            <div className="border-b border-border/50 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-muted-foreground" />
+                <span className="font-mono text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Tool Activity
+                </span>
+              </div>
+            </div>
+            <div className="space-y-3 p-4">
+              {toolParts.map((part, i) => (
+                <Tool
+                  key={`${part.type}-${i}`}
+                  defaultOpen={part.state !== 'output-available'}
+                >
+                  <ToolHeader type={part.type} state={part.state} />
+                  <ToolContent>
+                    <ToolInput input={part.input} />
+                    <ToolOutput output={part.output} errorText={part.errorText} />
+                  </ToolContent>
+                </Tool>
+              ))}
+            </div>
+          </aside>
+        ) : null}
       </div>
 
-      <form className="chat-form" onSubmit={handleSubmit}>
-        <div className="input-container">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask about guests, newsletters, outreach..."
-            disabled={isLoading}
-            rows={1}
-          />
-          <button type="submit" disabled={isLoading || !input.trim()}>
-            {isLoading ? (
-              <span className="loading-dots">
-                <span>.</span><span>.</span><span>.</span>
-              </span>
-            ) : (
-              '→'
-            )}
-          </button>
-        </div>
-        <div className="input-hint">
-          Press Enter to send, Shift+Enter for new line
-        </div>
-      </form>
-
-      <style jsx>{`
-        .chat-container {
-          display: flex;
-          flex-direction: column;
-          height: 100vh;
-          max-width: 900px;
-          margin: 0 auto;
-          background: var(--bg-primary);
-        }
-
-        .chat-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 16px 24px;
-          border-bottom: 1px solid var(--border-subtle);
-          background: var(--bg-secondary);
-        }
-
-        .header-content {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .header-title {
-          font-size: 18px;
-          font-weight: 600;
-          letter-spacing: -0.02em;
-        }
-
-        .header-badge {
-          font-size: 11px;
-          font-family: var(--font-mono);
-          padding: 2px 8px;
-          background: var(--accent-glow);
-          color: var(--accent-secondary);
-          border-radius: 4px;
-        }
-
-        .tool-toggle {
-          font-size: 12px;
-          font-family: var(--font-mono);
-          padding: 6px 12px;
-          background: var(--bg-tertiary);
-          border: 1px solid var(--border-subtle);
-          color: var(--text-secondary);
-          border-radius: 6px;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .tool-toggle:hover {
-          background: var(--bg-input);
-          border-color: var(--border-accent);
-        }
-
-        .chat-body {
-          flex: 1;
-          display: flex;
-          overflow: hidden;
-        }
-
-        .messages-container {
-          flex: 1;
-          overflow-y: auto;
-          padding: 24px;
-        }
-
-        .empty-state {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          height: 100%;
-          text-align: center;
-          color: var(--text-secondary);
-        }
-
-        .empty-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-        }
-
-        .empty-state h2 {
-          font-size: 24px;
-          font-weight: 600;
-          color: var(--text-primary);
-          margin-bottom: 8px;
-        }
-
-        .empty-state p {
-          max-width: 400px;
-          line-height: 1.6;
-        }
-
-        .message {
-          margin-bottom: 20px;
-        }
-
-        .message.user .message-content {
-          background: var(--accent-glow);
-          border: 1px solid var(--accent-primary);
-          color: var(--text-primary);
-          padding: 12px 16px;
-          border-radius: 12px 12px 4px 12px;
-          margin-left: 48px;
-        }
-
-        .message.assistant .message-content {
-          background: var(--bg-secondary);
-          border: 1px solid var(--border-subtle);
-          padding: 16px 20px;
-          border-radius: 4px 12px 12px 12px;
-          margin-right: 48px;
-          line-height: 1.7;
-          white-space: pre-wrap;
-        }
-
-        .thinking {
-          color: var(--text-muted);
-          font-style: italic;
-        }
-
-        .next-actions,
-        .assumptions {
-          margin-top: 12px;
-          padding: 12px 16px;
-          background: var(--bg-tertiary);
-          border-radius: 8px;
-          font-size: 13px;
-          margin-right: 48px;
-        }
-
-        .next-actions-label,
-        .assumptions-label {
-          display: block;
-          font-family: var(--font-mono);
-          font-size: 11px;
-          text-transform: uppercase;
-          color: var(--accent-secondary);
-          margin-bottom: 8px;
-          letter-spacing: 0.05em;
-        }
-
-        .assumptions-label {
-          color: var(--warning);
-        }
-
-        .next-actions ul,
-        .assumptions ul {
-          list-style: none;
-          padding-left: 0;
-        }
-
-        .next-actions li,
-        .assumptions li {
-          position: relative;
-          padding-left: 16px;
-          margin-bottom: 4px;
-          color: var(--text-secondary);
-        }
-
-        .next-actions li::before {
-          content: '→';
-          position: absolute;
-          left: 0;
-          color: var(--accent-primary);
-        }
-
-        .assumptions li::before {
-          content: '⚠';
-          position: absolute;
-          left: 0;
-          color: var(--warning);
-        }
-
-        .tool-panel {
-          width: 240px;
-          border-left: 1px solid var(--border-subtle);
-          background: var(--bg-secondary);
-          overflow-y: auto;
-        }
-
-        .tool-panel-header {
-          padding: 12px 16px;
-          font-size: 12px;
-          font-family: var(--font-mono);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          color: var(--text-muted);
-          border-bottom: 1px solid var(--border-subtle);
-        }
-
-        .tool-list {
-          padding: 8px;
-        }
-
-        .tool-item {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 8px 12px;
-          border-radius: 6px;
-          font-size: 12px;
-          margin-bottom: 4px;
-        }
-
-        .tool-item.running {
-          background: var(--accent-glow);
-        }
-
-        .tool-item.done {
-          background: rgba(34, 197, 94, 0.1);
-        }
-
-        .tool-indicator {
-          width: 6px;
-          height: 6px;
-          border-radius: 50%;
-        }
-
-        .tool-item.running .tool-indicator {
-          background: var(--accent-primary);
-          animation: pulse 1s ease-in-out infinite;
-        }
-
-        .tool-item.done .tool-indicator {
-          background: var(--success);
-        }
-
-        .tool-name {
-          flex: 1;
-          font-family: var(--font-mono);
-          color: var(--text-primary);
-        }
-
-        .tool-status {
-          font-family: var(--font-mono);
-          color: var(--text-muted);
-          font-size: 10px;
-          text-transform: uppercase;
-        }
-
-        .chat-form {
-          padding: 16px 24px 24px;
-          border-top: 1px solid var(--border-subtle);
-          background: var(--bg-secondary);
-        }
-
-        .input-container {
-          display: flex;
-          gap: 12px;
-          align-items: flex-end;
-        }
-
-        .input-container textarea {
-          flex: 1;
-          padding: 14px 18px;
-          background: var(--bg-input);
-          border: 1px solid var(--border-subtle);
-          border-radius: 12px;
-          color: var(--text-primary);
-          font-size: 15px;
-          font-family: var(--font-sans);
-          resize: none;
-          min-height: 52px;
-          max-height: 200px;
-          transition: border-color 0.15s ease;
-        }
-
-        .input-container textarea:focus {
-          outline: none;
-          border-color: var(--accent-primary);
-        }
-
-        .input-container textarea::placeholder {
-          color: var(--text-muted);
-        }
-
-        .input-container button {
-          padding: 14px 20px;
-          background: var(--accent-primary);
-          border: none;
-          border-radius: 12px;
-          color: white;
-          font-size: 18px;
-          font-weight: 600;
-          cursor: pointer;
-          transition: all 0.15s ease;
-        }
-
-        .input-container button:hover:not(:disabled) {
-          background: var(--accent-secondary);
-          transform: translateY(-1px);
-        }
-
-        .input-container button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .loading-dots span {
-          animation: pulse 1s ease-in-out infinite;
-        }
-
-        .loading-dots span:nth-child(2) {
-          animation-delay: 0.2s;
-        }
-
-        .loading-dots span:nth-child(3) {
-          animation-delay: 0.4s;
-        }
-
-        .input-hint {
-          margin-top: 8px;
-          font-size: 11px;
-          color: var(--text-muted);
-          text-align: center;
-        }
-      `}</style>
+      {/* DevTools (dev only) */}
+      <AIDevTools position="bottom-right" />
     </div>
   );
 }
-

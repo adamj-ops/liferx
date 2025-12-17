@@ -8,6 +8,9 @@
  * Context passed to every tool execution
  */
 export interface ToolContext {
+  /** Organization ID - REQUIRED for all tool executions */
+  org_id: string;
+  
   /** Current session ID (for agent sessions) */
   session_id?: string;
   
@@ -19,6 +22,15 @@ export interface ToolContext {
   
   /** Additional metadata */
   metadata?: Record<string, unknown>;
+}
+
+/**
+ * Request payload for tool execution API
+ */
+export interface ToolExecuteRequest {
+  toolName: string;
+  args: unknown;
+  context: ToolContext;
 }
 
 /**
