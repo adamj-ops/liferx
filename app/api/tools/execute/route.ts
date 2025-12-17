@@ -4,6 +4,20 @@ import type { ToolContext } from '@/lib/tools/types';
 
 const INTERNAL_SHARED_SECRET = process.env.INTERNAL_SHARED_SECRET;
 
+// Startup configuration logging
+let toolsStartupLogged = false;
+function logToolsStartup() {
+  if (toolsStartupLogged) return;
+  toolsStartupLogged = true;
+  
+  console.log('[tools/execute] Configuration status:', {
+    INTERNAL_SHARED_SECRET: INTERNAL_SHARED_SECRET ? '✓ configured' : '✗ MISSING (allow dev only)',
+    SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ configured' : '✗ MISSING',
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ configured' : '✗ MISSING',
+    NODE_ENV: process.env.NODE_ENV,
+  });
+}
+
 interface ToolExecuteRequestBody {
   toolName: string;
   args?: unknown;
@@ -22,6 +36,8 @@ interface ToolExecuteRequestBody {
  * Authenticates via shared secret and executes registered tools.
  */
 export async function POST(request: NextRequest) {
+  logToolsStartup();
+  
   try {
     // 1. Authenticate the request
     const authResult = authenticateRequest(request);

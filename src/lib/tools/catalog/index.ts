@@ -44,3 +44,6 @@ export {
   useIsCategoryExpanded,
   useToolsForCategory,
 } from './store';
+
+// Hooks
+export { useToolExecution } from './useToolExecution';

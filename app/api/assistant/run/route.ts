@@ -15,11 +15,36 @@ import {
 } from '@/lib/agno/contract';
 import type { HubEvent, HubEventFinal } from '@/lib/agno/events';
 
-// Environment configuration
+// Environment configuration with validation logging
 const AGNO_HUB_URL = process.env.AGNO_HUB_URL;
 const INTERNAL_SHARED_SECRET = process.env.INTERNAL_SHARED_SECRET;
 const ENABLE_OPERATOR_MODE = process.env.ENABLE_OPERATOR_MODE === 'true';
 const RUNTIME_VERSION = '1.0.0';
+
+// Startup validation - log configuration status once
+let startupLogged = false;
+function logStartupConfig() {
+  if (startupLogged) return;
+  startupLogged = true;
+  
+  const config = {
+    AGNO_HUB_URL: AGNO_HUB_URL ? '✓ configured' : '✗ MISSING',
+    INTERNAL_SHARED_SECRET: INTERNAL_SHARED_SECRET ? '✓ configured' : '✗ MISSING',
+    ENABLE_OPERATOR_MODE: ENABLE_OPERATOR_MODE ? '✓ enabled' : '○ disabled',
+    SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? '✓ configured' : '✗ MISSING',
+    SUPABASE_SERVICE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? '✓ configured' : '✗ MISSING',
+  };
+  
+  console.log('[assistant/run] Configuration status:', config);
+  
+  // Warn about missing critical config
+  if (!AGNO_HUB_URL) {
+    console.warn('[assistant/run] WARNING: AGNO_HUB_URL not set - operating in development mode');
+  }
+  if (!INTERNAL_SHARED_SECRET && !ENABLE_OPERATOR_MODE) {
+    console.warn('[assistant/run] WARNING: No authentication configured - set INTERNAL_SHARED_SECRET or ENABLE_OPERATOR_MODE');
+  }
+}
 
 interface RequestBody {
   session_id?: string;
@@ -31,6 +56,9 @@ interface RequestBody {
 let contractViolationCount = 0;
 
 export async function POST(request: NextRequest) {
+  // Log startup config on first request
+  logStartupConfig();
+  
   // =========================================
   // 1. Authentication
   // =========================================

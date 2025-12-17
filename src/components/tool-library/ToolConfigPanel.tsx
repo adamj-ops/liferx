@@ -1,7 +1,9 @@
 'use client';
 
 import { useToolLibraryStore } from '@/lib/tools/catalog';
+import { useToolExecution } from '@/lib/tools/catalog/useToolExecution';
 import type { ToolExecutionStatus } from '@/lib/tools/catalog';
+import type { ToolResponse, WriteRecord } from '@/lib/tools/types';
 import { cn } from '@/lib/utils';
 import { ParameterForm } from './ParameterForm';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,9 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  AlertTriangle,
+  Info,
+  Database,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -63,11 +68,11 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
     parameterValues,
     closeConfigPanel,
     clearSelection,
-    startExecution,
-    completeExecution,
     failExecution,
     resetExecution,
   } = useToolLibraryStore();
+
+  const { executeWithState } = useToolExecution();
 
   if (!selectedTool || !configPanelOpen) return null;
 
@@ -78,7 +83,22 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
     executionState.status === 'validating';
   const StatusIcon = STATUS_ICONS[executionState.status];
 
+  // Check if tool has backend implementation
+  const hasImplementation = !!selectedTool.toolName;
+
+  // Extract result data for display
+  const result = executionState.result as ToolResponse | undefined;
+  const resultData = result?.data;
+  const explainability = result?.explainability;
+  const writes = result?.writes;
+
   const handleRun = async () => {
+    // Check if tool has backend implementation
+    if (!selectedTool.toolName) {
+      failExecution('This tool is not yet implemented. Check back soon!');
+      return;
+    }
+
     // Validate required parameters
     const missingRequired = selectedTool.parameters
       .filter((p) => p.required && parameterValues[p.name] === undefined)
@@ -89,19 +109,10 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
       return;
     }
 
-    startExecution();
-
-    // TODO: Wire up to actual tool execution
-    // For now, simulate execution
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      completeExecution({
-        message: 'Tool executed successfully',
-        parameters: parameterValues,
-      });
-    } catch (err) {
-      failExecution(err instanceof Error ? err.message : 'Execution failed');
-    }
+    // Execute tool via API
+    await executeWithState(selectedTool.toolName, parameterValues, {
+      allowWrites: selectedTool.requiresWrites,
+    });
   };
 
   const handleClose = () => {
@@ -181,53 +192,121 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
           {/* Parameters */}
           <ParameterForm tool={selectedTool} disabled={isExecuting} />
 
-          {/* Output */}
-          {executionState.status !== 'idle' && (
-            <Collapsible defaultOpen className="space-y-2">
-              <CollapsibleTrigger className="flex w-full items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50">
-                <div className="flex items-center gap-2">
-                  {StatusIcon && (
-                    <StatusIcon
-                      className={cn(
-                        'h-4 w-4',
-                        isExecuting && 'animate-spin',
-                        executionState.status === 'success' && 'text-green-500',
-                        executionState.status === 'error' && 'text-destructive'
-                      )}
-                    />
-                  )}
-                  <span>
-                    {executionState.status === 'running'
-                      ? 'Running...'
-                      : executionState.status === 'success'
-                        ? 'Completed'
-                        : executionState.status === 'error'
-                          ? 'Error'
-                          : 'Output'}
-                  </span>
-                </div>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <div
-                  className={cn(
-                    'rounded-lg border p-3 text-sm',
-                    executionState.status === 'error' &&
-                      'border-destructive/50 bg-destructive/5'
-                  )}
-                >
-                  {executionState.error ? (
-                    <p className="text-destructive">{executionState.error}</p>
-                  ) : executionState.result ? (
-                    <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs">
-                      {JSON.stringify(executionState.result, null, 2)}
-                    </pre>
-                  ) : (
-                    <p className="text-muted-foreground">Processing...</p>
-                  )}
-                </div>
-              </CollapsibleContent>
-            </Collapsible>
+          {/* Not Implemented Warning */}
+          {!hasImplementation && (
+            <div className="flex items-start gap-2 rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-yellow-600" />
+              <div className="text-sm">
+                <p className="font-medium text-yellow-600">Not Yet Implemented</p>
+                <p className="text-muted-foreground">
+                  This tool is planned but doesn&apos;t have a backend implementation yet.
+                </p>
+              </div>
+            </div>
           )}
+
+          {/* Output */}
+          {executionState.status !== 'idle' ? (
+            <div className="space-y-3">
+              {/* Status Header */}
+              <div className="flex items-center gap-2 text-sm font-medium">
+                {StatusIcon && (
+                  <StatusIcon
+                    className={cn(
+                      'h-4 w-4',
+                      isExecuting && 'animate-spin',
+                      executionState.status === 'success' && 'text-green-500',
+                      executionState.status === 'error' && 'text-destructive'
+                    )}
+                  />
+                )}
+                <span>
+                  {executionState.status === 'running'
+                    ? 'Running...'
+                    : executionState.status === 'success'
+                      ? 'Completed Successfully'
+                      : executionState.status === 'error'
+                        ? 'Error'
+                        : 'Output'}
+                </span>
+              </div>
+
+              {executionState.error ? (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3">
+                  <p className="text-sm text-destructive">{executionState.error}</p>
+                </div>
+              ) : null}
+
+              {resultData ? (
+                <Collapsible defaultOpen className="space-y-2">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border bg-muted/30 px-3 py-2 text-sm font-medium hover:bg-muted/50">
+                    <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    <span>Result Data</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg border bg-muted/20 p-3 font-mono text-xs">
+                      {JSON.stringify(resultData, null, 2)}
+                    </pre>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
+
+              {explainability && Object.keys(explainability).length > 0 ? (
+                <Collapsible className="space-y-2">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border bg-blue-500/5 px-3 py-2 text-sm font-medium hover:bg-blue-500/10">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    <span>Why / How</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
+                      <pre className="overflow-x-auto whitespace-pre-wrap font-mono text-xs text-muted-foreground">
+                        {JSON.stringify(explainability, null, 2)}
+                      </pre>
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
+
+              {writes && writes.length > 0 ? (
+                <Collapsible className="space-y-2">
+                  <CollapsibleTrigger className="flex w-full items-center gap-2 rounded-lg border bg-purple-500/5 px-3 py-2 text-sm font-medium hover:bg-purple-500/10">
+                    <Database className="h-4 w-4 text-purple-500" />
+                    <span>Database Writes ({writes.length})</span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="space-y-2">
+                      {writes.map((write: WriteRecord) => (
+                        <div
+                          key={`${write.table}-${write.operation}-${write.id || 'no-id'}`}
+                          className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-2 text-xs"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-[10px]">
+                              {write.operation}
+                            </Badge>
+                            <span className="font-mono text-muted-foreground">
+                              {write.table}
+                            </span>
+                          </div>
+                          {write.id && (
+                            <p className="mt-1 font-mono text-muted-foreground">
+                              ID: {write.id}
+                            </p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              ) : null}
+
+              {isExecuting && !resultData && !executionState.error ? (
+                <div className="rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">Processing...</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </ScrollArea>
 

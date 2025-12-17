@@ -90,10 +90,28 @@ export async function sendMessage(
     }
   } catch (error) {
     console.error('Chat error:', error);
+    
+    // Provide user-friendly error messages
+    let errorMessage = 'An error occurred. Please try again.';
+    let errorDetail = error instanceof Error ? error.message : 'Unknown error';
+    
+    if (errorDetail.includes('401')) {
+      errorMessage = 'Authentication failed. Please check your configuration.';
+      errorDetail = 'The request was not authorized. Ensure ENABLE_OPERATOR_MODE is set or provide valid credentials.';
+    } else if (errorDetail.includes('500')) {
+      errorMessage = 'Server error. The assistant is temporarily unavailable.';
+      errorDetail = 'Internal server error. Check server logs for details.';
+    } else if (errorDetail.includes('502') || errorDetail.includes('Failed to connect')) {
+      errorMessage = 'Cannot reach the assistant. Please try again later.';
+      errorDetail = 'The Agno Hub may be offline or unreachable.';
+    } else if (errorDetail.includes('NetworkError') || errorDetail.includes('fetch')) {
+      errorMessage = 'Network error. Please check your connection.';
+    }
+    
     store.updateMessage(assistantMessageId, {
-      content: 'An error occurred. Please try again.',
+      content: `⚠️ ${errorMessage}\n\n_Error: ${errorDetail}_`,
     });
-    store.setError(error instanceof Error ? error.message : 'Unknown error');
+    store.setError(errorDetail);
   } finally {
     store.setLoading(false);
   }

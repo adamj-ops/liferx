@@ -51,6 +51,7 @@ interface ChatState {
   // Tool actions
   addToolStart: (tool: string, args?: unknown) => string;
   updateToolResult: (toolCallId: string, tool: string, data?: unknown, explainability?: unknown) => void;
+  setToolError: (toolCallId: string, tool: string, errorMessage: string) => void;
   toggleToolPanel: () => void;
   clearToolEvents: () => void;
   
@@ -113,6 +114,44 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   // Tool actions
+  setToolError: (toolCallId: string, tool: string, errorMessage: string) => {
+    set((state) => {
+      // Update tool parts to show error
+      const toolType = `tool-${tool}` as ToolUIPart['type'];
+      const updatedParts = state.toolParts.map((part) => {
+        if (part.toolCallId === toolCallId || 
+            (part.type === toolType && part.state === 'input-available')) {
+          return {
+            ...part,
+            state: 'error' as const,
+            output: undefined,
+            errorText: errorMessage,
+          };
+        }
+        return part;
+      });
+      
+      // Update tool events
+      const updatedEvents = state.toolEvents.map((event) => {
+        if (event.id === toolCallId) {
+          return {
+            ...event,
+            type: 'tool_result' as const,
+            data: { error: errorMessage },
+            duration: Date.now() - event.timestamp.getTime(),
+            status: 'error' as const,
+          };
+        }
+        return event;
+      });
+      
+      return {
+        toolParts: updatedParts,
+        toolEvents: updatedEvents,
+      };
+    });
+  },
+  
   addToolStart: (tool, args) => {
     const toolCallId = uuidv4();
     const event: ToolEvent = {
@@ -209,12 +248,31 @@ export const useChatStore = create<ChatState>((set, get) => ({
           .find((p) => p.type === `tool-${event.tool}` && p.state === 'input-available');
         
         if (pendingTool) {
-          state.updateToolResult(
-            pendingTool.toolCallId,
-            event.tool,
-            event.data,
-            event.explainability
-          );
+          // Check if this is an error result
+          const eventData = event.data as { success?: boolean; error?: { message?: string }; errorMessage?: string } | undefined;
+          if (eventData && eventData.success === false && (eventData.error || eventData.errorMessage)) {
+            const errorMsg = eventData.error?.message || eventData.errorMessage || 'Tool execution failed';
+            state.setToolError(pendingTool.toolCallId, event.tool, errorMsg);
+          } else {
+            state.updateToolResult(
+              pendingTool.toolCallId,
+              event.tool,
+              event.data,
+              event.explainability
+            );
+          }
+        }
+        break;
+        
+      case 'tool_error':
+        // Direct tool error event
+        const failedTool = [...state.toolParts]
+          .reverse()
+          .find((p) => p.state === 'input-available');
+        
+        if (failedTool && 'tool' in event) {
+          const errorEvent = event as { tool: string; error?: string };
+          state.setToolError(failedTool.toolCallId, errorEvent.tool, errorEvent.error || 'Tool execution failed');
         }
         break;
         
