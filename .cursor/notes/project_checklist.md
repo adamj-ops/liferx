@@ -151,10 +151,21 @@
 - RAG-searchable interview content
 - Optional theme scanning for recurring patterns
 
-### Phase 13: Pipeline 3 - Content Factory (Planned)
-- [ ] Carousel generator
-- [ ] Newsletter builder
-- [ ] Quote card generator
+## ✅ Phase 13: Pipeline 3 - Content Repurposing Engine (COMPLETE)
+- [x] Database migration: content_assets table with type, pillar, tone constraints
+- [x] content.generate_quote_card - Turn quotes into publishable card concepts
+- [x] content.generate_carousel_outline - Create Instagram/LinkedIn carousel outlines from themes
+- [x] content.generate_shortform_script - Generate 30-60s video/audio scripts
+- [x] content.generate_post_ideas - Generate 3-5 post topics from guest/theme
+- [x] contentRepurposing.ts coordinator pipeline
+- [x] Unit tests for validation and orchestrator logic
+
+**Pipeline 3 Delivers:**
+- Quotes become quote cards (headline, subtext, attribution, caption)
+- Themes become carousels (5-8 slide outlines with hook and CTA)
+- Interviews produce short-form scripts (30-60s spoken delivery)
+- Guests produce post ideas (tied to Health/Wealth/Connection)
+- All assets stored as structured, queryable, explainable content_assets
 
 ### Phase 14: Knowledge Base Population
 - [ ] Ingest existing ai_docs into ai_chunks

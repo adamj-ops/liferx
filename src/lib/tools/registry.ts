@@ -25,6 +25,10 @@ import { followupsCreate } from './implementations/followups-create';
 import { scoringScoreGuest } from './implementations/scoring-score-guest';
 import { themesUpsertTheme } from './implementations/themes-upsert-theme';
 import { themesLinkToInterview } from './implementations/themes-link-to-interview';
+import { contentGenerateQuoteCard } from './implementations/content-generate-quote-card';
+import { contentGenerateCarouselOutline } from './implementations/content-generate-carousel-outline';
+import { contentGenerateShortformScript } from './implementations/content-generate-shortform-script';
+import { contentGeneratePostIdeas } from './implementations/content-generate-post-ideas';
 
 /**
  * Registry of all available tools
@@ -67,6 +71,12 @@ registerTool(scoringScoreGuest);
 // Theme tools
 registerTool(themesUpsertTheme);
 registerTool(themesLinkToInterview);
+
+// Content tools (Pipeline 3)
+registerTool(contentGenerateQuoteCard);
+registerTool(contentGenerateCarouselOutline);
+registerTool(contentGenerateShortformScript);
+registerTool(contentGeneratePostIdeas);
 
 /**
  * Get a tool by name

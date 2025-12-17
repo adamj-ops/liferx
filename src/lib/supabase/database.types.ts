@@ -878,6 +878,51 @@ export type Database = {
         }
         Relationships: []
       }
+      content_assets: {
+        Row: {
+          id: string
+          org_id: string
+          type: string
+          title: string | null
+          body: Json
+          pillar: string | null
+          tone: string | null
+          theme_id: string | null
+          guest_id: string | null
+          interview_id: string | null
+          source_quote_ids: string[] | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          org_id: string
+          type: string
+          title?: string | null
+          body: Json
+          pillar?: string | null
+          tone?: string | null
+          theme_id?: string | null
+          guest_id?: string | null
+          interview_id?: string | null
+          source_quote_ids?: string[] | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          org_id?: string
+          type?: string
+          title?: string | null
+          body?: Json
+          pillar?: string | null
+          tone?: string | null
+          theme_id?: string | null
+          guest_id?: string | null
+          interview_id?: string | null
+          source_quote_ids?: string[] | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       guests: {
         Row: {
           bio: string | null

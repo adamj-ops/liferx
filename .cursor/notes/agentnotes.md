@@ -62,16 +62,40 @@ ENABLE_OPERATOR_MODE=true  # Set to true for dev/testing
 | Systems | Schema design, tooling, integrations |
 
 ## Registered Tools
+
+### Brain Tools
 1. `brain.upsert_item` - Create/update brain items (decision, SOP, principle, etc.)
 2. `brain.record_decision` - Record decision with rationale
 3. `brain.append_memory` - Store agent memory with TTL
-4. `guests.upsert_guest` - Create/update guest profiles
-5. `interviews.upsert_interview` - Create/update interviews
-6. `interviews.add_quote` - Add quotes with pillar tagging
-7. `interviews.tag_theme` - Tag interviews with themes
-8. `outreach.log_event` - Log outreach activities
-9. `followups.create` - Create follow-up tasks
-10. `scoring.score_guest` - Calculate explainable guest scores
+4. `brain.search` - Semantic search with intent + logging
+
+### Guest Tools
+5. `guests.upsert_guest` - Create/update guest profiles
+6. `guests.enrich_profiles` - Enrich with external intelligence
+7. `guest_personas.upsert` - Generate RAG-powered personas
+
+### Interview Tools
+8. `interviews.upsert_interview` - Create/update interviews
+9. `interviews.add_quote` - Add quotes with pillar tagging
+10. `interviews.tag_theme` - Tag interviews with themes
+11. `interviews.auto_tag` - AI-powered auto-tagging
+12. `interviews.extract_defining_quotes` - Extract defining quotes
+13. `interviews.build_semantic_index` - RAG indexing for transcripts
+
+### Theme Tools
+14. `themes.upsert_theme` - Create/update themes with evidence
+15. `themes.link_to_interview` - Link themes to interviews/quotes
+
+### Content Tools (Pipeline 3)
+16. `content.generate_quote_card` - Turn quotes into publishable card concepts
+17. `content.generate_carousel_outline` - Create carousel outlines from themes
+18. `content.generate_shortform_script` - Generate 30-60s video/audio scripts
+19. `content.generate_post_ideas` - Generate post topics from guest/theme
+
+### Other Tools
+20. `outreach.log_event` - Log outreach activities
+21. `followups.create` - Create follow-up tasks
+22. `scoring.score_guest` - Calculate explainable guest scores
 
 ## Database Schema (Extended Existing Tables)
 - `ai_tool_logs` - Extended with tool_version, status, duration_ms, writes
@@ -91,6 +115,7 @@ ENABLE_OPERATOR_MODE=true  # Set to true for dev/testing
 - `outreach_events` - Outreach activity log
 - `followups` - Follow-up tasks
 - `engagement_scores` - Engagement metrics
+- `content_assets` - Pipeline 3 generated content (quote cards, carousels, scripts, post ideas)
 
 ## Deployment Steps
 
@@ -114,7 +139,29 @@ ENABLE_OPERATOR_MODE=true  # Set to true for dev/testing
 - All tools require explicit `allowWrites: true` for mutations
 - Tools return explainability metadata
 
-## Last Session: Dec 16, 2024
+## Last Session: Dec 17, 2024
+- Implemented Pipeline 3: Content Repurposing Engine
+- Created content_assets table with type/pillar/tone constraints
+- Added 4 content tools: quote_card, carousel, shortform_script, post_ideas
+- Created contentRepurposing.ts coordinator pipeline
+- Added 56 unit tests for validation and orchestrator logic
+- All tests passing
+
+### Pipeline 3 Usage
+To run content repurposing:
+```typescript
+import { runContentRepurposingPipeline } from '@/pipelines/contentRepurposing';
+
+const result = await runContentRepurposingPipeline({
+  org_id: 'your-org-uuid',
+  allowWrites: true,
+  guest_id: 'optional-guest-uuid',      // → generates post ideas
+  interview_id: 'optional-interview-uuid', // → generates quote cards + script
+  theme_id: 'optional-theme-uuid',       // → generates carousel
+});
+```
+
+## Previous Session: Dec 16, 2024
 - Created Agno Hub structure for Railway deployment
 - Updated migrations to EXTEND existing Supabase tables
 - Applied all migrations successfully
