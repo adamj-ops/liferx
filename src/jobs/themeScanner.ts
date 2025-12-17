@@ -20,6 +20,7 @@ export interface ThemeScannerInput {
   lookback_days?: number;   // default: 30
   max_interviews?: number;  // default: 50
   dry_run?: boolean;        // default: false
+  interview_ids?: string[]; // optional: process specific interviews instead of recent ones
 }
 
 interface ProposedTheme {
@@ -229,15 +230,24 @@ export async function runThemeScanner(input: ThemeScannerInput): Promise<ThemeSc
     themes: [],
   };
 
-  // 1. Query recent interviews (org-scoped)
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
-
-  const { data: interviews, error: interviewsError } = await supabase
+  // 1. Query interviews (either specific IDs or recent by date)
+  let interviewQuery = supabase
     .from('interviews')
-    .select('id, title, summary, raw_transcript')
-    .gte('created_at', cutoffDate.toISOString())
-    .limit(maxInterviews);
+    .select('id, title, summary, raw_transcript');
+  
+  if (input.interview_ids && input.interview_ids.length > 0) {
+    // Process specific interviews
+    interviewQuery = interviewQuery.in('id', input.interview_ids);
+  } else {
+    // Process recent interviews based on lookback
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
+    interviewQuery = interviewQuery
+      .gte('created_at', cutoffDate.toISOString())
+      .limit(maxInterviews);
+  }
+
+  const { data: interviews, error: interviewsError } = await interviewQuery;
 
   if (interviewsError) {
     throw new Error(`Failed to fetch interviews: ${interviewsError.message}`);

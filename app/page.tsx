@@ -1,7 +1,7 @@
 'use client';
 
 import type { FormEvent, ReactNode } from 'react';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   useChatStore,
   useMessages,
@@ -43,6 +43,7 @@ import {
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { Loader } from '@/components/ai-elements/loader';
 import { PromptLibrarySidebar } from '@/components/prompt-library';
+import { FileUploadModal } from '@/components/file-upload';
 import { Button } from '@/components/ui/button';
 import {
   AlertTriangle,
@@ -76,7 +77,8 @@ export default function BrainChat() {
   const error = useError();
   const { sessionId, toggleToolPanel, clearMessages, setError } = useChatStore();
   const { sidebarOpen, toggleSidebar } = usePromptLibraryStore();
-  
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+
   // Calculate tool status counts
   const toolStatusCounts = useMemo(() => {
     const pending = toolEvents.filter(e => e.status === 'pending').length;
@@ -219,7 +221,10 @@ export default function BrainChat() {
                   />
                   <PromptInputToolbar>
                     <PromptInputTools>
-                      <PromptInputButton title="Attach file">
+                      <PromptInputButton
+                        title="Add to knowledge base"
+                        onClick={() => setUploadModalOpen(true)}
+                      >
                         <Paperclip className="size-4" />
                       </PromptInputButton>
                       <PromptInputButton title="Voice input">
@@ -331,7 +336,10 @@ export default function BrainChat() {
                     />
                     <PromptInputToolbar>
                       <PromptInputTools>
-                        <PromptInputButton title="Attach file">
+                        <PromptInputButton
+                          title="Add to knowledge base"
+                          onClick={() => setUploadModalOpen(true)}
+                        >
                           <Paperclip className="size-4" />
                         </PromptInputButton>
                         <PromptInputButton title="Voice input">
@@ -407,6 +415,15 @@ export default function BrainChat() {
 
       {/* DevTools */}
       <AIDevTools position="bottom-right" />
+
+      {/* File Upload Modal */}
+      <FileUploadModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        onUploadComplete={(documentId) => {
+          console.log('[FileUpload] Document uploaded:', documentId);
+        }}
+      />
     </div>
   );
 }

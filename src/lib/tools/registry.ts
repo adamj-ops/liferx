@@ -17,6 +17,9 @@ import { guestPersonasUpsert } from './implementations/guest-personas-upsert';
 import { interviewsUpsertInterview } from './implementations/interviews-upsert-interview';
 import { interviewsAddQuote } from './implementations/interviews-add-quote';
 import { interviewsTagTheme } from './implementations/interviews-tag-theme';
+import { interviewsAutoTag } from './implementations/interviews-auto-tag';
+import { interviewsExtractDefiningQuotes } from './implementations/interviews-extract-defining-quotes';
+import { interviewsBuildSemanticIndex } from './implementations/interviews-build-semantic-index';
 import { outreachLogEvent } from './implementations/outreach-log-event';
 import { followupsCreate } from './implementations/followups-create';
 import { scoringScoreGuest } from './implementations/scoring-score-guest';
@@ -48,6 +51,9 @@ registerTool(guestPersonasUpsert);
 registerTool(interviewsUpsertInterview);
 registerTool(interviewsAddQuote);
 registerTool(interviewsTagTheme);
+registerTool(interviewsAutoTag);
+registerTool(interviewsExtractDefiningQuotes);
+registerTool(interviewsBuildSemanticIndex);
 
 // Outreach tools
 registerTool(outreachLogEvent);

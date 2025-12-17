@@ -138,10 +138,18 @@
 
 ## Next Steps (Future Phases)
 
-### Phase 12: Pipeline 2 - Interview Intelligence (Planned)
-- [ ] Interview Auto-Tagging
-- [ ] Defining Quote Extraction
-- [ ] Guest Linking
+## ✅ Phase 12: Pipeline 2 - Interview Intelligence (COMPLETE)
+- [x] interviews.auto_tag - AI-powered tagging (industries, expertise, pillars, tones)
+- [x] interviews.extract_defining_quotes - Extract reusable quotes with classification
+- [x] interviews.build_semantic_index - RAG indexing for interview transcripts
+- [x] Interview Intelligence Pipeline orchestrator (src/pipelines/interviewIntelligence.ts)
+- [x] Integration with Theme Scanner for cross-interview pattern detection
+
+**Pipeline 2 Delivers:**
+- Automatic interview tagging based on transcript analysis
+- Quote extraction with pillar/tone classification
+- RAG-searchable interview content
+- Optional theme scanning for recurring patterns
 
 ### Phase 13: Pipeline 3 - Content Factory (Planned)
 - [ ] Carousel generator
