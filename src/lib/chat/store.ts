@@ -153,6 +153,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             ...part,
             state: 'output-available' as const,
             output: { tool, data, explainability },
+            errorText: undefined,
           };
         }
         return part;
