@@ -1065,3 +1065,7 @@ export function searchTools(query: string): CatalogTool[] {
       tool.tags?.some((tag) => tag.toLowerCase().includes(lowerQuery))
   );
 }
+
+export function getCategoryInfo(categoryId: ToolCategory): CategoryInfo | undefined {
+  return CATEGORIES.find((cat) => cat.id === categoryId);
+}
