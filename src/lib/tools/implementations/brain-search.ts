@@ -193,22 +193,24 @@ export const brainSearch: ToolDefinition<BrainSearchArgs> = {
       };
 
       // 7. Log search for feedback loop (non-blocking)
-      supabase.from('ai_search_logs').insert({
-        org_id: context.org_id || null,
-        agent: (context.metadata?.agent as string) || 'unknown',
-        session_id: (context.metadata?.session_id as string) || null,
-        query: query,
-        intent: args.intent,
-        result_count: formattedResults.length,
-        top_result_ids: formattedResults.slice(0, 5).map(r => r.source.id).filter(Boolean),
-        similarity_scores: formattedResults.slice(0, 5).map(r => r.similarity),
-        tokens_used: queryEmbedding.tokenCount,
-        latency_ms: latencyMs,
-      }).then(() => {
-        // Log success silently
-      }).catch(err => {
-        console.warn('[brain.search] Failed to log search:', err);
-      });
+      (async () => {
+        try {
+          await supabase.from('ai_search_logs').insert({
+            org_id: context.org_id || null,
+            agent: (context.metadata?.agent as string) || 'unknown',
+            session_id: (context.metadata?.session_id as string) || null,
+            query: query,
+            intent: args.intent,
+            result_count: formattedResults.length,
+            top_result_ids: formattedResults.slice(0, 5).map(r => r.source.id).filter(Boolean),
+            similarity_scores: formattedResults.slice(0, 5).map(r => r.similarity),
+            tokens_used: queryEmbedding.tokenCount,
+            latency_ms: latencyMs,
+          });
+        } catch (err) {
+          console.warn('[brain.search] Failed to log search:', err);
+        }
+      })();
 
       // 8. Return normalized or raw results
       if (args.normalize) {

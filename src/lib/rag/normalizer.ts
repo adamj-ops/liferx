@@ -154,7 +154,8 @@ function extractTopQuote(content: string): string | null {
   }
   
   // Fallback to first sentence
-  return sentences[0].trim();
+  const firstSentence = sentences[0];
+  return firstSentence ? firstSentence.trim() : null;
 }
 
 /**
