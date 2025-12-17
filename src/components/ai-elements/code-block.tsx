@@ -1,76 +1,25 @@
-"use client";
+'use client';
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { CheckIcon, CopyIcon } from "lucide-react";
-import {
-  type ComponentProps,
-  createContext,
-  type HTMLAttributes,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { type BundledLanguage, codeToHtml, type ShikiTransformer } from "shiki";
-
-type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
-  code: string;
-  language: BundledLanguage;
-  showLineNumbers?: boolean;
-};
+import { CheckIcon, CopyIcon } from 'lucide-react';
+import type { ComponentProps, HTMLAttributes, ReactNode } from 'react';
+import { createContext, useContext, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 type CodeBlockContextType = {
   code: string;
 };
 
 const CodeBlockContext = createContext<CodeBlockContextType>({
-  code: "",
+  code: '',
 });
 
-const lineNumberTransformer: ShikiTransformer = {
-  name: "line-numbers",
-  line(node, line) {
-    node.children.unshift({
-      type: "element",
-      tagName: "span",
-      properties: {
-        className: [
-          "inline-block",
-          "min-w-10",
-          "mr-4",
-          "text-right",
-          "select-none",
-          "text-muted-foreground",
-        ],
-      },
-      children: [{ type: "text", value: String(line) }],
-    });
-  },
+export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
+  code: string;
+  language: string;
+  showLineNumbers?: boolean;
+  children?: ReactNode;
 };
-
-export async function highlightCode(
-  code: string,
-  language: BundledLanguage,
-  showLineNumbers = false
-) {
-  const transformers: ShikiTransformer[] = showLineNumbers
-    ? [lineNumberTransformer]
-    : [];
-
-  return await Promise.all([
-    codeToHtml(code, {
-      lang: language,
-      theme: "one-light",
-      transformers,
-    }),
-    codeToHtml(code, {
-      lang: language,
-      theme: "one-dark-pro",
-      transformers,
-    }),
-  ]);
-}
 
 export const CodeBlock = ({
   code,
@@ -80,46 +29,48 @@ export const CodeBlock = ({
   children,
   ...props
 }: CodeBlockProps) => {
-  const [html, setHtml] = useState<string>("");
-  const [darkHtml, setDarkHtml] = useState<string>("");
-  const mounted = useRef(false);
-
-  useEffect(() => {
-    highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
-      if (!mounted.current) {
-        setHtml(light);
-        setDarkHtml(dark);
-        mounted.current = true;
-      }
-    });
-
-    return () => {
-      mounted.current = false;
-    };
-  }, [code, language, showLineNumbers]);
+  // Split code into lines for line numbering
+  const lines = code.split('\n');
 
   return (
     <CodeBlockContext.Provider value={{ code }}>
       <div
         className={cn(
-          "group relative w-full overflow-hidden rounded-md border bg-background text-foreground",
-          className
+          'relative w-full overflow-hidden rounded-md border bg-background text-foreground',
+          className,
         )}
         {...props}
       >
         <div className="relative">
-          <div
-            className="overflow-auto dark:hidden [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
-            dangerouslySetInnerHTML={{ __html: html }}
-          />
-          <div
-            className="hidden overflow-auto dark:block [&>pre]:m-0 [&>pre]:bg-background! [&>pre]:p-4 [&>pre]:text-foreground! [&>pre]:text-sm [&_code]:font-mono [&_code]:text-sm"
-            // biome-ignore lint/security/noDangerouslySetInnerHtml: "this is needed."
-            dangerouslySetInnerHTML={{ __html: darkHtml }}
-          />
+          {/* Replace react-syntax-highlighter with simple pre/code block */}
+          <div className="relative overflow-x-auto">
+            <pre className="m-0 p-4 text-sm bg-background text-foreground overflow-x-auto">
+              <code className={`language-${language} font-mono text-sm block`}>
+                {showLineNumbers ? (
+                  <div className="flex">
+                    <div className="select-none text-muted-foreground pr-4 text-right min-w-[2.5rem] flex-shrink-0">
+                      {lines.map((_, index) => (
+                        <div key={index + 1} className="leading-6">
+                          {index + 1}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex-1 overflow-x-auto">
+                      {lines.map((line, index) => (
+                        <div key={index} className="leading-6">
+                          {line || '\u00A0'}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  code
+                )}
+              </code>
+            </pre>
+          </div>
           {children && (
-            <div className="absolute top-2 right-2 flex items-center gap-2">
+            <div className="absolute right-2 top-2 flex items-center gap-2">
               {children}
             </div>
           )}
@@ -128,6 +79,7 @@ export const CodeBlock = ({
     </CodeBlockContext.Provider>
   );
 };
+
 
 export type CodeBlockCopyButtonProps = ComponentProps<typeof Button> & {
   onCopy?: () => void;
@@ -147,8 +99,8 @@ export const CodeBlockCopyButton = ({
   const { code } = useContext(CodeBlockContext);
 
   const copyToClipboard = async () => {
-    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
-      onError?.(new Error("Clipboard API not available"));
+    if (typeof window === 'undefined' || !navigator.clipboard.writeText) {
+      onError?.(new Error('Clipboard API not available'));
       return;
     }
 
@@ -166,7 +118,7 @@ export const CodeBlockCopyButton = ({
 
   return (
     <Button
-      className={cn("shrink-0", className)}
+      className={cn('shrink-0', className)}
       onClick={copyToClipboard}
       size="icon"
       variant="ghost"
