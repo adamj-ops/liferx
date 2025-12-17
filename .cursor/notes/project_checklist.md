@@ -24,9 +24,10 @@
 - [x] Write intent guard (allowWrites)
 
 ## ✅ Phase 4: Tool Implementations (COMPLETE)
-- [x] brain.upsert_item
-- [x] brain.record_decision
-- [x] brain.append_memory
+- [x] brain.upsert_item (Decision, SOP, Principle, Playbook)
+- [x] brain.record_decision (Quick decision logging)
+- [x] brain.append_memory (Append-only brain memory)
+- [x] brain.search (Semantic search - NEW)
 - [x] guests.upsert_guest
 - [x] interviews.upsert_interview
 - [x] interviews.add_quote
@@ -34,66 +35,75 @@
 - [x] outreach.log_event
 - [x] followups.create
 - [x] scoring.score_guest
+- [x] themes.upsert_theme
+- [x] themes.link_to_interview
 
-## ✅ Phase 5: Database (COMPLETE)
-- [x] Core brain tables migration
-- [x] Guests/interviews extensions
-- [x] Audience/prospects extensions
-- [x] Outreach/ops tables
-- [x] All migrations applied to Supabase
+## ✅ Phase 5: Chat Store & UI (COMPLETE)
+- [x] Zustand chat store
+- [x] Tool UI parts tracking
+- [x] Streaming message updates
+- [x] Tool panel sidebar
+- [x] Error/loading states
 
-## ✅ Phase 6: Agno Hub (COMPLETE)
-- [x] FastAPI server structure
-- [x] Agent definitions (Hub, Ops, Content, Growth, Systems)
-- [x] Tool callback client
-- [x] Dockerfile for Railway
-- [x] README with deployment steps
+## ✅ Phase 6: Agno Hub Integration (COMPLETE)
+- [x] Hub event streaming
+- [x] Contract validation (v1)
+- [x] Tool callback flow
+- [x] Agent routing (Hub → Ops/Content/Growth/Systems)
+- [x] Shared guardrails
 
 ## ✅ Phase 7: Deployment (COMPLETE)
-- [x] Deploy Agno Hub to Railway
-  - URL: https://alert-patience-production.up.railway.app
-  - Environment: OPENAI_API_KEY, INTERNAL_SHARED_SECRET, TOOL_API_URL
-- [x] Deploy Next.js to Vercel
-  - URL: https://liferx-opsfx.vercel.app
-  - Environment: Supabase keys, AGNO_HUB_URL, INTERNAL_SHARED_SECRET, ENABLE_OPERATOR_MODE
-- [x] Connect Next.js to Hub via AGNO_HUB_URL
-- [x] End-to-end test: chat → streaming → persistence → UI render
+- [x] Railway deployment for Agno Hub
+- [x] Vercel deployment for Next.js
+- [x] Environment variable configuration
+- [x] End-to-end validation
+- [x] Ops hardening (error logging, config validation)
 
-## ✅ Phase 8: Polish (COMPLETE)
-- [x] Ops hardening: runtime config logging and validation
-- [x] Better error messages with user-friendly text
-- [x] Tool error handling in chat store
-- [x] Error banner display with dismiss button
-- [x] Tool status indicators (success/pending/error counts)
-- [x] Loading UX with animated spinners
-- [x] Color-coded tool states in header button
+## ✅ Phase 8: UI Polish (COMPLETE)
+- [x] Error banner display
+- [x] Tool status indicators
+- [x] Loading animations
+- [x] Tool activity panel enhancements
 
-## Deployment Summary
+## ✅ Phase 9: RAG/Semantic Search (COMPLETE)
+- [x] Supabase migration for match_ai_chunks RPC
+- [x] Text chunking utility (chunker.ts)
+- [x] OpenAI embedding wrapper (embedder.ts)
+- [x] Document ingestion pipeline (ingest.ts)
+- [x] brain.search tool implementation
+- [x] Tool registration and agent instructions
+- [x] Ingestion API endpoint (/api/internal/ingest)
 
-| Service | Platform | URL | Status |
-|---------|----------|-----|--------|
-| Agno Hub | Railway | https://alert-patience-production.up.railway.app | ✅ Healthy |
-| Next.js App | Vercel | https://liferx-opsfx.vercel.app | ✅ Production |
-| Database | Supabase | avzjjydhjqtsizexjpm.supabase.co | ✅ Connected |
+---
 
-## Environment Variables
+## Deployed Services
 
-### Railway (Agno Hub)
-- `OPENAI_API_KEY` - OpenAI API key
-- `INTERNAL_SHARED_SECRET` - Shared secret for Next.js ↔ Hub auth
-- `TOOL_API_URL` - Next.js tools endpoint (https://liferx-opsfx.vercel.app/api/tools/execute)
-- `OPENAI_MODEL` (optional) - Model to use (default: gpt-4)
+| Service | Platform | URL |
+|---------|----------|-----|
+| Agno Hub | Railway | https://alert-patience-production.up.railway.app |
+| Next.js App | Vercel | https://liferx-opsfx.vercel.app |
+| Database | Supabase | (configured via env vars) |
 
-### Vercel (Next.js)
-- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
-- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
-- `AGNO_HUB_URL` - Railway Agno Hub URL
-- `INTERNAL_SHARED_SECRET` - Matching secret with Railway
-- `ENABLE_OPERATOR_MODE` - Set to "true" for unauthenticated access
+---
 
-## Notes
-- All TypeScript compiles without errors
-- Migrations applied successfully to Supabase
-- System fully deployed and operational
-- End-to-end chat flow tested and working
+## Next Steps (Future Phases)
+
+### Phase 10: Knowledge Base Population
+- [ ] Ingest existing ai_docs into ai_chunks
+- [ ] Set up automatic ingestion for new documents
+- [ ] Create ingestion dashboard/admin UI
+
+### Phase 11: Session History UI
+- [ ] Display past conversations
+- [ ] Resume previous sessions
+- [ ] Session search/filtering
+
+### Phase 12: User Authentication
+- [ ] Connect auth to chat sessions
+- [ ] User-scoped data access
+- [ ] Session ownership
+
+### Phase 13: Advanced Features
+- [ ] Multi-turn tool conversations
+- [ ] Tool chaining
+- [ ] Scheduled tasks/workflows
