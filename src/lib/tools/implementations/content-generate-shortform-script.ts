@@ -157,23 +157,29 @@ export const contentGenerateShortformScript: ToolDefinition<GenerateShortformScr
         .single();
 
       if (themeLink?.interview_quotes) {
-        const q = themeLink.interview_quotes as { id: string; quote: string; topic: string; guest_id: string | null };
-        quoteText = q.quote;
-        quoteTopic = q.topic;
-        sourceQuoteIds.push(q.id);
-        guestId = q.guest_id;
+        // interview_quotes can be an array or single object depending on join
+        const quotesRaw = themeLink.interview_quotes as unknown;
+        const quoteArray = Array.isArray(quotesRaw) ? quotesRaw : (quotesRaw ? [quotesRaw] : []);
+        const firstQuote = quoteArray[0] as { id?: string; quote?: string; topic?: string; guest_id?: string | null } | undefined;
+        
+        if (firstQuote?.quote) {
+          quoteText = firstQuote.quote;
+          quoteTopic = firstQuote.topic || '';
+          if (firstQuote.id) sourceQuoteIds.push(firstQuote.id);
+          guestId = firstQuote.guest_id || null;
 
-        if (q.guest_id) {
-          const { data: guest } = await supabase
-            .from('guests')
-            .select('id, full_name, name, title, company')
-            .eq('id', q.guest_id)
-            .single();
+          if (firstQuote.guest_id) {
+            const { data: guest } = await supabase
+              .from('guests')
+              .select('id, full_name, name, title, company')
+              .eq('id', firstQuote.guest_id)
+              .single();
 
-          if (guest) {
-            guestName = guest.full_name || guest.name || '';
-            guestTitle = guest.title || '';
-            guestCompany = guest.company || '';
+            if (guest) {
+              guestName = guest.full_name || guest.name || '';
+              guestTitle = guest.title || '';
+              guestCompany = guest.company || '';
+            }
           }
         }
       }

@@ -10,6 +10,8 @@ import {
   useShowToolPanel,
   useError,
   useToolEvents,
+  useWebSearchEnabled,
+  useFirecrawlEnabled,
 } from '@/lib/chat/store';
 import { usePromptLibraryStore } from '@/lib/prompts';
 import { sendMessage } from '@/lib/chat/send-message';
@@ -44,11 +46,14 @@ import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { Loader } from '@/components/ai-elements/loader';
 import { PromptLibrarySidebar } from '@/components/prompt-library';
 import { FileUploadModal } from '@/components/file-upload';
+import { QuickCalendarDialog } from '@/components/calendar/QuickCalendarDialog';
 import { Button } from '@/components/ui/button';
 import {
   AlertTriangle,
+  CalendarDays,
   CheckCircle2,
   ChevronRight,
+  Flame,
   Globe,
   Loader2,
   Menu,
@@ -75,9 +80,12 @@ export default function BrainChat() {
   const toolEvents = useToolEvents();
   const showToolPanel = useShowToolPanel();
   const error = useError();
-  const { sessionId, toggleToolPanel, clearMessages, setError } = useChatStore();
+  const webSearchEnabled = useWebSearchEnabled();
+  const firecrawlEnabled = useFirecrawlEnabled();
+  const { sessionId, toggleToolPanel, clearMessages, setError, toggleWebSearch, toggleFirecrawl } = useChatStore();
   const { sidebarOpen, toggleSidebar } = usePromptLibraryStore();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   // Calculate tool status counts
   const toolStatusCounts = useMemo(() => {
@@ -101,9 +109,11 @@ export default function BrainChat() {
       await sendMessage(text, {
         sessionId,
         chatHistory,
+        webSearchEnabled,
+        firecrawlEnabled,
       });
     },
-    [sessionId, chatHistory]
+    [sessionId, chatHistory, webSearchEnabled, firecrawlEnabled]
   );
 
   return (
@@ -227,12 +237,30 @@ export default function BrainChat() {
                       >
                         <Paperclip className="size-4" />
                       </PromptInputButton>
+                      <PromptInputButton
+                        title="Calendar"
+                        onClick={() => setCalendarOpen(true)}
+                      >
+                        <CalendarDays className="size-4" />
+                      </PromptInputButton>
                       <PromptInputButton title="Voice input">
                         <Mic className="size-4" />
                       </PromptInputButton>
-                      <PromptInputButton title="Web search">
+                      <PromptInputButton
+                        title={webSearchEnabled ? "Disable web search" : "Enable web search"}
+                        onClick={toggleWebSearch}
+                        className={webSearchEnabled ? "bg-primary/10 text-primary" : ""}
+                      >
                         <Globe className="size-4" />
-                        Search
+                        {webSearchEnabled ? "Search On" : "Search"}
+                      </PromptInputButton>
+                      <PromptInputButton
+                        title={firecrawlEnabled ? "Disable Firecrawl" : "Enable Firecrawl"}
+                        onClick={toggleFirecrawl}
+                        className={firecrawlEnabled ? "bg-orange-500/10 text-orange-500" : ""}
+                      >
+                        <Flame className="size-4" />
+                        {firecrawlEnabled ? "Crawl On" : "Crawl"}
                       </PromptInputButton>
                     </PromptInputTools>
                     <PromptInputSubmit
@@ -342,12 +370,30 @@ export default function BrainChat() {
                         >
                           <Paperclip className="size-4" />
                         </PromptInputButton>
+                        <PromptInputButton
+                          title="Calendar"
+                          onClick={() => setCalendarOpen(true)}
+                        >
+                          <CalendarDays className="size-4" />
+                        </PromptInputButton>
                         <PromptInputButton title="Voice input">
                           <Mic className="size-4" />
                         </PromptInputButton>
-                        <PromptInputButton title="Web search">
+                        <PromptInputButton
+                          title={webSearchEnabled ? "Disable web search" : "Enable web search"}
+                          onClick={toggleWebSearch}
+                          className={webSearchEnabled ? "bg-primary/10 text-primary" : ""}
+                        >
                           <Globe className="size-4" />
-                          Search
+                          {webSearchEnabled ? "Search On" : "Search"}
+                        </PromptInputButton>
+                        <PromptInputButton
+                          title={firecrawlEnabled ? "Disable Firecrawl" : "Enable Firecrawl"}
+                          onClick={toggleFirecrawl}
+                          className={firecrawlEnabled ? "bg-orange-500/10 text-orange-500" : ""}
+                        >
+                          <Flame className="size-4" />
+                          {firecrawlEnabled ? "Crawl On" : "Crawl"}
                         </PromptInputButton>
                       </PromptInputTools>
                       <PromptInputSubmit
@@ -424,6 +470,9 @@ export default function BrainChat() {
           console.log('[FileUpload] Document uploaded:', documentId);
         }}
       />
+
+      {/* Quick Calendar */}
+      <QuickCalendarDialog open={calendarOpen} onOpenChange={setCalendarOpen} />
     </div>
   );
 }

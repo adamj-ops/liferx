@@ -50,6 +50,10 @@ interface RequestBody {
   session_id?: string;
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   user?: { id?: string; email?: string };
+  options?: {
+    webSearchEnabled?: boolean;
+    firecrawlEnabled?: boolean;
+  };
 }
 
 // Contract violation counter for monitoring
@@ -90,7 +94,7 @@ export async function POST(request: NextRequest) {
     );
   }
   
-  const { messages, user } = body;
+  const { messages, user, options } = body;
   
   if (!messages || !Array.isArray(messages) || messages.length === 0) {
     return new Response(
@@ -208,6 +212,10 @@ Session: ${sessionId}`;
         session_id: sessionId,
         messages,
         user: { id: userId, email: user?.email },
+        options: {
+          webSearchEnabled: options?.webSearchEnabled ?? false,
+          firecrawlEnabled: options?.firecrawlEnabled ?? false,
+        },
       }),
     });
     

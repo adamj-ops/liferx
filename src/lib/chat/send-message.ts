@@ -11,6 +11,8 @@ import type { HubEvent, ChatMessage } from '@/lib/agno/types';
 interface SendMessageOptions {
   sessionId: string;
   chatHistory: Array<{ role: string; content: string }>;
+  webSearchEnabled?: boolean;
+  firecrawlEnabled?: boolean;
 }
 
 export async function sendMessage(
@@ -53,6 +55,10 @@ export async function sendMessage(
           ...options.chatHistory,
           { role: 'user', content: userMessage.content },
         ],
+        options: {
+          webSearchEnabled: options.webSearchEnabled ?? false,
+          firecrawlEnabled: options.firecrawlEnabled ?? false,
+        },
       }),
     });
     

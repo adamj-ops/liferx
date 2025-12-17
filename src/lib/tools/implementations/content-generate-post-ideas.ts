@@ -165,9 +165,15 @@ export const contentGeneratePostIdeas: ToolDefinition<GeneratePostIdeasArgs> = {
 
       if (themeLinks) {
         for (const link of themeLinks) {
-          const q = link.interview_quotes as { quote: string; topic: string } | null;
-          if (q) {
-            quotes.push(q.quote);
+          // interview_quotes can be an array or a single object depending on the join
+          const quoteDataRaw = link.interview_quotes as unknown;
+          const quoteArray = Array.isArray(quoteDataRaw) ? quoteDataRaw : (quoteDataRaw ? [quoteDataRaw] : []);
+          
+          for (const q of quoteArray) {
+            const quote = q as { quote?: string; topic?: string };
+            if (quote.quote) {
+              quotes.push(quote.quote);
+            }
           }
         }
       }

@@ -92,15 +92,21 @@ export const contentGenerateCarouselOutline: ToolDefinition<GenerateCarouselOutl
 
     if (themeLinks) {
       for (const link of themeLinks) {
-        const quoteData = link.interview_quotes as { id: string; quote: string; topic: string; guest_id: string | null } | null;
-        if (quoteData) {
-          quotes.push({
-            quote: quoteData.quote,
-            topic: quoteData.topic,
-            guest_id: quoteData.guest_id,
-          });
-          if (quoteData.guest_id) {
-            guestIds.add(quoteData.guest_id);
+        // interview_quotes can be an array or a single object depending on the join
+        const quoteDataRaw = link.interview_quotes as unknown;
+        const quoteArray = Array.isArray(quoteDataRaw) ? quoteDataRaw : (quoteDataRaw ? [quoteDataRaw] : []);
+        
+        for (const quoteData of quoteArray) {
+          const q = quoteData as { id?: string; quote?: string; topic?: string; guest_id?: string | null };
+          if (q.quote) {
+            quotes.push({
+              quote: q.quote,
+              topic: q.topic || '',
+              guest_id: q.guest_id || null,
+            });
+            if (q.guest_id) {
+              guestIds.add(q.guest_id);
+            }
           }
         }
       }

@@ -31,15 +31,19 @@ interface ChatState {
   messages: ChatMessage[];
   isLoading: boolean;
   sessionId: string;
-  
+
+  // Search options
+  webSearchEnabled: boolean;
+  firecrawlEnabled: boolean;
+
   // Tool activity
   toolParts: ToolUIPart[];
   toolEvents: ToolEvent[];
   showToolPanel: boolean;
-  
+
   // Error state
   error: string | null;
-  
+
   // Actions
   addMessage: (message: ChatMessage) => void;
   updateMessage: (id: string, updates: Partial<ChatMessage>) => void;
@@ -47,14 +51,18 @@ interface ChatState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearMessages: () => void;
-  
+
+  // Search actions
+  toggleWebSearch: () => void;
+  toggleFirecrawl: () => void;
+
   // Tool actions
   addToolStart: (tool: string, args?: unknown) => string;
   updateToolResult: (toolCallId: string, tool: string, data?: unknown, explainability?: unknown) => void;
   setToolError: (toolCallId: string, tool: string, errorMessage: string) => void;
   toggleToolPanel: () => void;
   clearToolEvents: () => void;
-  
+
   // Streaming handler
   handleHubEvent: (event: HubEvent, messageId: string) => void;
 }
@@ -68,6 +76,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
   messages: [],
   isLoading: false,
   sessionId: uuidv4(),
+  webSearchEnabled: false,
+  firecrawlEnabled: false,
   toolParts: [],
   toolEvents: [],
   showToolPanel: false,
@@ -105,14 +115,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
   
   clearMessages: () => {
-    set({ 
-      messages: [], 
-      toolParts: [], 
+    set({
+      messages: [],
+      toolParts: [],
       toolEvents: [],
       error: null,
     });
   },
-  
+
+  // Search actions
+  toggleWebSearch: () => {
+    set((state) => ({ webSearchEnabled: !state.webSearchEnabled }));
+  },
+
+  toggleFirecrawl: () => {
+    set((state) => ({ firecrawlEnabled: !state.firecrawlEnabled }));
+  },
+
   // Tool actions
   setToolError: (toolCallId: string, tool: string, errorMessage: string) => {
     set((state) => {
@@ -286,4 +305,6 @@ export const useToolParts = () => useChatStore((state) => state.toolParts);
 export const useToolEvents = () => useChatStore((state) => state.toolEvents);
 export const useShowToolPanel = () => useChatStore((state) => state.showToolPanel);
 export const useError = () => useChatStore((state) => state.error);
+export const useWebSearchEnabled = () => useChatStore((state) => state.webSearchEnabled);
+export const useFirecrawlEnabled = () => useChatStore((state) => state.firecrawlEnabled);
 

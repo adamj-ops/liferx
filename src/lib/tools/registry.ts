@@ -21,7 +21,15 @@ import { interviewsAutoTag } from './implementations/interviews-auto-tag';
 import { interviewsExtractDefiningQuotes } from './implementations/interviews-extract-defining-quotes';
 import { interviewsBuildSemanticIndex } from './implementations/interviews-build-semantic-index';
 import { outreachLogEvent } from './implementations/outreach-log-event';
+import { outreachCreateCampaign } from './implementations/outreach-create-campaign';
+import { outreachUpsertThread } from './implementations/outreach-upsert-thread';
+import { outreachComposeMessage } from './implementations/outreach-compose-message';
+import { outreachQueueSend } from './implementations/outreach-queue-send';
+import { outreachMarkSent } from './implementations/outreach-mark-sent';
+import { outreachRecordInbound } from './implementations/outreach-record-inbound';
+import { outreachSendEmail } from './implementations/outreach-send-email';
 import { followupsCreate } from './implementations/followups-create';
+import { followupsCreateForThread } from './implementations/followups-create-for-thread';
 import { scoringScoreGuest } from './implementations/scoring-score-guest';
 import { themesUpsertTheme } from './implementations/themes-upsert-theme';
 import { themesLinkToInterview } from './implementations/themes-link-to-interview';
@@ -59,11 +67,19 @@ registerTool(interviewsAutoTag);
 registerTool(interviewsExtractDefiningQuotes);
 registerTool(interviewsBuildSemanticIndex);
 
-// Outreach tools
+// Outreach tools (Pipeline 4)
 registerTool(outreachLogEvent);
+registerTool(outreachCreateCampaign);
+registerTool(outreachUpsertThread);
+registerTool(outreachComposeMessage);
+registerTool(outreachQueueSend);
+registerTool(outreachMarkSent);
+registerTool(outreachRecordInbound);
+registerTool(outreachSendEmail);
 
 // Followup tools
 registerTool(followupsCreate);
+registerTool(followupsCreateForThread);
 
 // Scoring tools
 registerTool(scoringScoreGuest);

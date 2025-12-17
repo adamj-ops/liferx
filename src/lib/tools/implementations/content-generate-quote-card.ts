@@ -110,7 +110,12 @@ export const contentGenerateQuoteCard: ToolDefinition<GenerateQuoteCardArgs> = {
       .single();
     
     if (quoteThemeLink?.themes) {
-      themeName = (quoteThemeLink.themes as { name: string }).name;
+      // themes can be an array or single object depending on join
+      const themesRaw = quoteThemeLink.themes as unknown;
+      const themeObj = Array.isArray(themesRaw) ? themesRaw[0] : themesRaw;
+      if (themeObj && typeof themeObj === 'object' && 'name' in themeObj) {
+        themeName = (themeObj as { name: string }).name;
+      }
     } else if (quote.interview_id) {
       // Fallback to interview-level theme
       const { data: interviewThemeLink } = await supabase
@@ -122,7 +127,12 @@ export const contentGenerateQuoteCard: ToolDefinition<GenerateQuoteCardArgs> = {
         .single();
       
       if (interviewThemeLink?.themes) {
-        themeName = (interviewThemeLink.themes as { name: string }).name;
+        // themes can be an array or single object depending on join
+        const themesRaw = interviewThemeLink.themes as unknown;
+        const themeObj = Array.isArray(themesRaw) ? themesRaw[0] : themesRaw;
+        if (themeObj && typeof themeObj === 'object' && 'name' in themeObj) {
+          themeName = (themeObj as { name: string }).name;
+        }
       }
     }
 

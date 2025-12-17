@@ -167,7 +167,30 @@
 - Guests produce post ideas (tied to Health/Wealth/Connection)
 - All assets stored as structured, queryable, explainable content_assets
 
-### Phase 14: Knowledge Base Population
+## ✅ Phase 14: Pipeline 4 - Outreach & Contributor Automation (COMPLETE)
+- [x] Database: outreach_campaigns, outreach_threads tables
+- [x] Database: Extended outreach_messages with org_id, thread_id, direction, channel, status
+- [x] Database: Extended followups with org_id, thread_id, status, reason
+- [x] Tool: outreach.create_campaign - Create outreach campaigns
+- [x] Tool: outreach.upsert_thread - Create/update guest threads
+- [x] Tool: outreach.compose_message - AI-powered personalized message generation
+- [x] Tool: outreach.queue_send - Queue messages for sending
+- [x] Tool: outreach.mark_sent - Mark messages as sent with followup scheduling
+- [x] Tool: outreach.record_inbound - Record guest replies
+- [x] Tool: followups.create_for_thread - Create thread-linked followups
+- [x] Tool: outreach.send_email - Send emails via Resend provider
+- [x] Provider: EmailProvider abstraction + Resend implementation
+- [x] Internal endpoints: /api/internal/outreach/compose, /queue, /send-email
+- [x] Orchestrator: src/pipelines/outreachAutomation.ts (eligibility + flows)
+
+**Pipeline 4 Delivers:**
+- Personalized contributor invite + post-release follow-up generation
+- Explainable eligibility computation (score, POVs, quotes, social presence)
+- State machine for thread management (draft → queued → sent → replied)
+- Real email sending via Resend with audit trail
+- Follow-up scheduling and tracking
+
+### Phase 15: Knowledge Base Population
 - [ ] Ingest existing ai_docs into ai_chunks
 - [ ] Set up automatic ingestion for new documents
 - [ ] Create ingestion dashboard/admin UI
@@ -186,3 +209,9 @@
 - [ ] Multi-turn tool conversations
 - [ ] Tool chaining
 - [ ] Scheduled tasks/workflows
+
+### Phase 18: Big Calendar (IN PROGRESS)
+- [ ] Port `src/calendar/**` module (views + header + dialogs + DnD)
+- [ ] Add calendar button to actions bar (already present) to open full calendar overlay
+- [ ] Decide persistence strategy (mock vs Supabase tables) and implement if needed
+- [ ] Validate drag/drop + view switching + event CRUD

@@ -243,8 +243,8 @@ export async function runThemeScanner(input: ThemeScannerInput): Promise<ThemeSc
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - lookbackDays);
     interviewQuery = interviewQuery
-      .gte('created_at', cutoffDate.toISOString())
-      .limit(maxInterviews);
+    .gte('created_at', cutoffDate.toISOString())
+    .limit(maxInterviews);
   }
 
   const { data: interviews, error: interviewsError } = await interviewQuery;
