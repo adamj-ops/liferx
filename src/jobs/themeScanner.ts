@@ -96,7 +96,8 @@ interface SemanticPattern {
  */
 async function findSemanticPatterns(
   interviews: Array<{ id: string; title: string; summary: string }>,
-  supabase: ReturnType<typeof createServiceClient>
+  supabase: ReturnType<typeof createServiceClient>,
+  orgId: string
 ): Promise<SemanticPattern[]> {
   const patterns: Map<string, SemanticPattern> = new Map();
   
@@ -174,11 +175,12 @@ async function findSemanticPatterns(
       // Generate embedding for the topic
       const topicEmbedding = await embedText(topic);
       
-      // Search for related chunks
+      // Search for related chunks (org-scoped)
       const { data: matches } = await supabase.rpc('match_ai_chunks', {
         query_embedding: topicEmbedding.embedding,
         match_count: 5,
         match_threshold: 0.5,
+        match_org_id: orgId,
       });
       
       patterns.set(topic, {
@@ -251,7 +253,8 @@ export async function runThemeScanner(input: ThemeScannerInput): Promise<ThemeSc
   try {
     semanticPatterns = await findSemanticPatterns(
       interviews.map(i => ({ id: i.id, title: i.title || '', summary: i.summary || '' })),
-      supabase
+      supabase,
+      input.org_id
     );
     console.log(`[themeScanner] Found ${semanticPatterns.length} semantic patterns`);
   } catch (err) {

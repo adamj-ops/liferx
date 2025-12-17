@@ -12,6 +12,8 @@ import { brainRecordDecision } from './implementations/brain-record-decision';
 import { brainAppendMemory } from './implementations/brain-append-memory';
 import { brainSearch } from './implementations/brain-search';
 import { guestsUpsertGuest } from './implementations/guests-upsert-guest';
+import { guestsEnrichProfiles } from './implementations/guests-enrich-profiles';
+import { guestPersonasUpsert } from './implementations/guest-personas-upsert';
 import { interviewsUpsertInterview } from './implementations/interviews-upsert-interview';
 import { interviewsAddQuote } from './implementations/interviews-add-quote';
 import { interviewsTagTheme } from './implementations/interviews-tag-theme';
@@ -39,6 +41,8 @@ registerTool(brainSearch);
 
 // Guest tools
 registerTool(guestsUpsertGuest);
+registerTool(guestsEnrichProfiles);
+registerTool(guestPersonasUpsert);
 
 // Interview tools
 registerTool(interviewsUpsertInterview);

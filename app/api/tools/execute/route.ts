@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeTool } from '@/lib/tools/executeTool';
 import type { ToolContext } from '@/lib/tools/types';
+import { getEffectiveOrgId, isValidUUID } from '@/lib/constants';
 
 const INTERNAL_SHARED_SECRET = process.env.INTERNAL_SHARED_SECRET;
 
@@ -58,9 +59,25 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Build context
+    // 3. Validate and build context
+    const providedOrgId = body.context?.org_id;
+    
+    // Validate org_id if provided - must be a valid UUID
+    if (providedOrgId && !isValidUUID(providedOrgId)) {
+      return NextResponse.json(
+        { 
+          success: false,
+          error: {
+            code: 'INVALID_ORG_ID',
+            message: 'org_id must be a valid UUID',
+          },
+        },
+        { status: 400 }
+      );
+    }
+    
     const context: ToolContext = {
-      org_id: body.context?.org_id ?? process.env.DEFAULT_ORG_ID ?? 'operator',
+      org_id: getEffectiveOrgId(providedOrgId),
       session_id: body.context?.session_id,
       user_id: body.context?.user_id,
       allowWrites: body.context?.allowWrites ?? false,

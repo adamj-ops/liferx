@@ -99,12 +99,13 @@ export const brainSearch: ToolDefinition<BrainSearchArgs> = {
       // 1. Generate embedding for the query
       const queryEmbedding = await embedText(query);
       
-      // 2. Call the vector search RPC function
+      // 2. Call the vector search RPC function with org_id filtering
       const { data: matches, error: searchError } = await supabase
         .rpc('match_ai_chunks', {
           query_embedding: queryEmbedding.embedding,
           match_count: limit,
           match_threshold: threshold,
+          match_org_id: context.org_id,
         });
 
       if (searchError) {
