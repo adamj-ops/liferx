@@ -30,6 +30,7 @@ import {
   PromptInputTextarea,
   PromptInputToolbar,
   PromptInputTools,
+  PromptInputButton,
   PromptInputSubmit,
 } from '@/components/ai-elements/prompt-input';
 import {
@@ -47,8 +48,11 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
+  Globe,
   Loader2,
-  PanelLeft,
+  Menu,
+  Mic,
+  Paperclip,
   RotateCcw,
   Wrench,
   XCircle,
@@ -118,7 +122,7 @@ export default function BrainChat() {
               title={sidebarOpen ? 'Close prompts sidebar' : 'Open prompts sidebar'}
               className={`h-8 w-8 ${sidebarOpen ? 'bg-accent' : ''}`}
             >
-              <PanelLeft className="h-4 w-4" />
+              <Menu className="h-4 w-4" />
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -214,7 +218,18 @@ export default function BrainChat() {
                     maxHeight={260}
                   />
                   <PromptInputToolbar>
-                    <PromptInputTools />
+                    <PromptInputTools>
+                      <PromptInputButton title="Attach file">
+                        <Paperclip className="size-4" />
+                      </PromptInputButton>
+                      <PromptInputButton title="Voice input">
+                        <Mic className="size-4" />
+                      </PromptInputButton>
+                      <PromptInputButton title="Web search">
+                        <Globe className="size-4" />
+                        Search
+                      </PromptInputButton>
+                    </PromptInputTools>
                     <PromptInputSubmit
                       disabled={isLoading}
                       status={isLoading ? 'streaming' : 'ready'}
@@ -315,7 +330,18 @@ export default function BrainChat() {
                       disabled={isLoading}
                     />
                     <PromptInputToolbar>
-                      <PromptInputTools />
+                      <PromptInputTools>
+                        <PromptInputButton title="Attach file">
+                          <Paperclip className="size-4" />
+                        </PromptInputButton>
+                        <PromptInputButton title="Voice input">
+                          <Mic className="size-4" />
+                        </PromptInputButton>
+                        <PromptInputButton title="Web search">
+                          <Globe className="size-4" />
+                          Search
+                        </PromptInputButton>
+                      </PromptInputTools>
                       <PromptInputSubmit
                         disabled={isLoading}
                         status={isLoading ? 'streaming' : 'ready'}

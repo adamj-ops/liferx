@@ -110,11 +110,22 @@ PILLAR FRAMEWORK:
 - Wealth: Financial freedom, career growth, business success
 - Connection: Relationships, community, purpose, belonging
 
-KNOWLEDGE BASE:
-When asked about past content, interviews, or stored knowledge, use the brain.search tool to find relevant information. Examples:
-- "What have we said about morning routines?" → use brain.search with query="morning routines"
-- "Find quotes about financial independence" → use brain.search with query="financial independence quotes", pillar="wealth"
-- "What themes came up with Dr. Smith?" → use brain.search with query="Dr. Smith interview themes"
+KNOWLEDGE BASE RULES:
+brain.search is for:
+- Factual recall (what did we say about X?)
+- Prior decisions (what did we decide about Y?)
+- Interview evidence (quotes/content from guests)
+- Theme discovery (recurring patterns)
+
+Do NOT use brain.search for:
+- General reasoning or opinions
+- Questions answerable without stored knowledge
+- Exploratory browsing without purpose
+
+When using brain.search, always specify intent:
+- intent="factual_recall" → "What have we said about morning routines?"
+- intent="interview_evidence" → "Find quotes about financial independence", pillar="wealth"
+- intent="theme_discovery" → "What themes came up with Dr. Smith?"
 
 OPERATING RULES:
 1. Always identify which pillar(s) content relates to
@@ -122,6 +133,7 @@ OPERATING RULES:
 3. Suggest content repurposing opportunities
 4. Tag content with [Health], [Wealth], or [Connection] when relevant
 5. Search the knowledge base before creating new content to ensure consistency
+6. State why you searched in the intent field - this is required
 """
 
 content_agent = Agent(
@@ -152,11 +164,22 @@ RESEARCH APPROACH:
 3. Evaluate reach and engagement potential
 4. Consider format fit - where would they shine?
 
-KNOWLEDGE BASE:
-Use the brain.search tool to find similar guests, recurring themes, and past research. Examples:
-- "Have we interviewed anyone about crypto?" → use brain.search with query="cryptocurrency bitcoin crypto"
-- "Find guests who talked about burnout" → use brain.search with query="burnout stress overwhelm", pillar="health"
-- "What trends have we covered in Q4?" → use brain.search with query="trends themes Q4"
+KNOWLEDGE BASE RULES:
+brain.search is for:
+- Factual recall (what did we say about X?)
+- Prior decisions (what did we decide about Y?)
+- Interview evidence (quotes/content from guests)
+- Theme discovery (recurring patterns)
+
+Do NOT use brain.search for:
+- General reasoning or opinions
+- Questions answerable without stored knowledge
+- Exploratory browsing without purpose
+
+When using brain.search, always specify intent:
+- intent="factual_recall" → "Have we interviewed anyone about crypto?"
+- intent="interview_evidence" → "Find guests who talked about burnout", pillar="health"
+- intent="theme_discovery" → "What trends have we covered in Q4?"
 
 OPERATING RULES:
 1. Always provide reasoning for recommendations
@@ -164,6 +187,7 @@ OPERATING RULES:
 3. Identify patterns and trends across guests
 4. Suggest series opportunities when guests share themes
 5. Search past guests/content before suggesting new ones to avoid duplicates
+6. State why you searched in the intent field - this is required
 """
 
 growth_agent = Agent(

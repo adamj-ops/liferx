@@ -9,6 +9,7 @@ import OpenAI from 'openai';
 import { createServiceClient } from '../lib/supabase/server';
 import { executeTool } from '../lib/tools/executeTool';
 import { ToolContext } from '../lib/tools/types';
+import { embedText } from '../lib/rag/embedder';
 
 // ============================================================================
 // Types
@@ -61,6 +62,10 @@ const RULES_VERSION = '1.0.0';
 const DEFAULT_LOOKBACK_DAYS = 30;
 const DEFAULT_MAX_INTERVIEWS = 50;
 
+// Semantic pattern finding settings
+const SEMANTIC_PATTERN_THRESHOLD = 3; // Minimum interviews for a pattern
+const MAX_SEMANTIC_PATTERNS = 10; // Max patterns to find
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -71,6 +76,134 @@ function nameToSlug(name: string): string {
     .toLowerCase()
     .replace(/\s+/g, '-')
     .replace(/[^a-z0-9-]/g, '');
+}
+
+// ============================================================================
+// Semantic Pattern Finding
+// ============================================================================
+
+interface SemanticPattern {
+  topic: string;
+  occurrences: number;
+  interview_ids: string[];
+  avg_similarity: number;
+  sample_content: string[];
+}
+
+/**
+ * Find semantic patterns across interviews using vector search.
+ * Extracts key topics from summaries and finds cross-interview similarities.
+ */
+async function findSemanticPatterns(
+  interviews: Array<{ id: string; title: string; summary: string }>,
+  supabase: ReturnType<typeof createServiceClient>
+): Promise<SemanticPattern[]> {
+  const patterns: Map<string, SemanticPattern> = new Map();
+  
+  // Extract key topics from each interview summary
+  const topicExtractor = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  
+  // Batch extract topics from all summaries
+  const summaryTexts = interviews
+    .filter(i => i.summary && i.summary.length > 50)
+    .map(i => ({ id: i.id, summary: i.summary }));
+  
+  if (summaryTexts.length < 2) {
+    // Not enough content for pattern finding
+    return [];
+  }
+  
+  // Use AI to extract key topics from all summaries at once
+  const topicResponse = await topicExtractor.chat.completions.create({
+    model: 'gpt-4o-mini',
+    messages: [
+      {
+        role: 'system',
+        content: `Extract 2-4 key topics/themes from each interview summary. Return JSON array with format: [{"interview_id": "uuid", "topics": ["topic1", "topic2"]}]. Topics should be 2-4 word phrases like "morning routines", "financial freedom", "burnout recovery".`,
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(summaryTexts),
+      },
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+  });
+  
+  let interviewTopics: Array<{ interview_id: string; topics: string[] }>;
+  try {
+    const parsed = JSON.parse(topicResponse.choices[0]?.message?.content || '{}');
+    interviewTopics = Array.isArray(parsed) ? parsed : (parsed.interviews || parsed.data || []);
+  } catch {
+    console.warn('[themeScanner] Failed to parse topic extraction response');
+    return [];
+  }
+  
+  // Create topic -> interview mapping
+  const topicToInterviews = new Map<string, Set<string>>();
+  
+  for (const item of interviewTopics) {
+    for (const topic of item.topics || []) {
+      const normalizedTopic = topic.toLowerCase().trim();
+      if (!topicToInterviews.has(normalizedTopic)) {
+        topicToInterviews.set(normalizedTopic, new Set());
+      }
+      topicToInterviews.get(normalizedTopic)!.add(item.interview_id);
+    }
+  }
+  
+  // Find topics that appear in multiple interviews
+  const frequentTopics: Array<{ topic: string; interview_ids: string[] }> = [];
+  
+  for (const [topic, interviewIds] of topicToInterviews) {
+    if (interviewIds.size >= SEMANTIC_PATTERN_THRESHOLD) {
+      frequentTopics.push({
+        topic,
+        interview_ids: Array.from(interviewIds),
+      });
+    }
+  }
+  
+  // Sort by frequency and limit
+  frequentTopics.sort((a, b) => b.interview_ids.length - a.interview_ids.length);
+  const topFrequent = frequentTopics.slice(0, MAX_SEMANTIC_PATTERNS);
+  
+  // For each frequent topic, do a semantic search to find related content
+  for (const { topic, interview_ids } of topFrequent) {
+    try {
+      // Generate embedding for the topic
+      const topicEmbedding = await embedText(topic);
+      
+      // Search for related chunks
+      const { data: matches } = await supabase.rpc('match_ai_chunks', {
+        query_embedding: topicEmbedding.embedding,
+        match_count: 5,
+        match_threshold: 0.5,
+      });
+      
+      patterns.set(topic, {
+        topic,
+        occurrences: interview_ids.length,
+        interview_ids,
+        avg_similarity: matches?.length > 0 
+          ? matches.reduce((sum: number, m: { similarity: number }) => sum + m.similarity, 0) / matches.length 
+          : 0,
+        sample_content: (matches || []).slice(0, 2).map((m: { content: string }) => 
+          m.content.length > 200 ? m.content.slice(0, 197) + '...' : m.content
+        ),
+      });
+    } catch (err) {
+      console.warn(`[themeScanner] Failed semantic search for topic "${topic}":`, err);
+    }
+  }
+  
+  // Return patterns sorted by occurrence + similarity
+  return Array.from(patterns.values())
+    .sort((a, b) => {
+      const scoreA = a.occurrences * 0.7 + a.avg_similarity * 0.3;
+      const scoreB = b.occurrences * 0.7 + b.avg_similarity * 0.3;
+      return scoreB - scoreA;
+    });
 }
 
 // ============================================================================
@@ -113,6 +246,18 @@ export async function runThemeScanner(input: ThemeScannerInput): Promise<ThemeSc
     return result;
   }
 
+  // 1b. NEW: Find semantic patterns across interviews using RAG
+  let semanticPatterns: SemanticPattern[] = [];
+  try {
+    semanticPatterns = await findSemanticPatterns(
+      interviews.map(i => ({ id: i.id, title: i.title || '', summary: i.summary || '' })),
+      supabase
+    );
+    console.log(`[themeScanner] Found ${semanticPatterns.length} semantic patterns`);
+  } catch (err) {
+    console.warn('[themeScanner] Semantic pattern finding failed, continuing without:', err);
+  }
+
   // 2. Query quotes from those interviews
   const interviewIds = interviews.map(i => i.id);
   const { data: quotes, error: quotesError } = await supabase
@@ -141,7 +286,7 @@ export async function runThemeScanner(input: ThemeScannerInput): Promise<ThemeSc
     };
   });
 
-  // 4. Call OpenAI to extract themes
+  // 4. Call OpenAI to extract themes (now with semantic pattern hints)
   const systemPrompt = `You are an expert content analyst for LifeRX, a platform focused on Health, Wealth, and Connection.
 
 Analyze the following interview content and identify recurring themes across the interviews.
@@ -160,8 +305,26 @@ For each theme you identify:
 Return your analysis as a JSON array of themes. Only include themes with confidence >= 0.5.
 Limit to the top ${MAX_THEMES_PER_RUN} most significant themes.`;
 
-  const userPrompt = `Analyze these interviews and quotes for recurring themes:
+  // Build user prompt with semantic patterns as hints
+  const semanticPatternHints = semanticPatterns.length > 0
+    ? `
 
+SEMANTIC PATTERNS DETECTED (high-confidence starting points from knowledge base):
+These patterns were found by semantic search across our stored content. Consider these as strong candidates for themes.
+
+${JSON.stringify(semanticPatterns.map(p => ({
+  topic: p.topic,
+  occurrences: p.occurrences,
+  interview_ids: p.interview_ids,
+  sample_content: p.sample_content,
+})), null, 2)}
+
+`
+    : '';
+
+  const userPrompt = `Analyze these interviews and quotes for recurring themes:
+${semanticPatternHints}
+INTERVIEW CONTENT:
 ${JSON.stringify(contentForAnalysis, null, 2)}
 
 Return a JSON array with this exact structure:

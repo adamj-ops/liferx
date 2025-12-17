@@ -33,3 +33,12 @@ export {
   type IngestResult,
 } from './ingest';
 
+// Result post-processing
+export {
+  normalizeSearchResults,
+  type RawSearchResult,
+  type NormalizedSource,
+  type NormalizedSummary,
+  type NormalizedSearchResult,
+} from './normalizer';
+
