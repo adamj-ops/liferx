@@ -5,22 +5,26 @@ This server:
 1. Receives requests from the Next.js app at POST /run
 2. Routes to the appropriate agent via the Hub
 3. Calls tools back to the Next.js app
-4. Returns streaming responses
+4. Returns streaming responses with contract-compliant events
 
 Deploy to Railway with the included Dockerfile.
+
+Contract Version: v1
 """
 
 import os
 import json
 import asyncio
+import re
 from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 
-from agents import hub, get_agent_by_name, AGENT_NAMES
+from agents import hub, get_agent_by_name, AGENT_NAMES, get_contract_version
 from tools import call_tool
+from shared_instructions import AGNO_CONTRACT_VERSION
 
 load_dotenv()
 
@@ -44,13 +48,22 @@ def verify_request(request: Request) -> None:
 @app.get("/")
 async def root():
     """Root endpoint."""
-    return {"status": "ok", "service": "LifeRX Agno Hub", "agents": AGENT_NAMES}
+    return {
+        "status": "ok",
+        "service": "LifeRX Agno Hub",
+        "contract_version": AGNO_CONTRACT_VERSION,
+        "agents": AGENT_NAMES,
+    }
 
 
 @app.get("/health")
 async def health():
     """Health check endpoint."""
-    return {"status": "ok", "agents": AGENT_NAMES}
+    return {
+        "status": "ok",
+        "contract_version": AGNO_CONTRACT_VERSION,
+        "agents": AGENT_NAMES,
+    }
 
 
 @app.post("/run")
@@ -66,7 +79,13 @@ async def run(request: Request):
         "user": {"id": "...", "email": "..."}
     }
     
-    Returns: SSE stream of HubEvents
+    Returns: SSE stream of HubEvents (contract v1)
+    
+    Event types:
+    - delta: { type: "delta", content: string }
+    - tool_start: { type: "tool_start", tool: string }
+    - tool_result: { type: "tool_result", tool: string, data?: any }
+    - final: { type: "final", payload: AgentResponse }
     """
     verify_request(request)
     
@@ -104,20 +123,22 @@ async def stream_response(message: str, context: dict) -> AsyncGenerator[str, No
     """
     Process the message through the Hub and stream the response.
     
-    Emits canonical HubEvent types:
+    Emits canonical HubEvent types (contract v1):
     - delta: Content chunks
-    - tool_start: Tool invocation started
+    - tool_start: Tool invocation started (minimal)
     - tool_result: Tool completed with result
-    - final: Response complete with next_actions
+    - final: Response complete with payload containing AgentResponse
     """
+    full_content = ""
+    agent_name = "Ops"
+    assumptions = []
+    
     try:
         # Route through the Hub
         route_result = await hub.arun(message)
         
         # Extract routing decision
-        agent_name = "Ops"  # Default
         routing_reason = ""
-        assumptions = []
         
         if hasattr(route_result, 'content'):
             content = route_result.content
@@ -130,76 +151,199 @@ async def stream_response(message: str, context: dict) -> AsyncGenerator[str, No
                     # Hub returned plain text, use as reason
                     routing_reason = content
         
+        # Validate agent name
+        if agent_name not in ["Ops", "Content", "Growth", "Systems"]:
+            assumptions.append(f"Unknown agent '{agent_name}' requested, defaulting to Ops")
+            agent_name = "Ops"
+        
         # Get the target agent
         agent = get_agent_by_name(agent_name)
         if not agent:
             agent_name = "Ops"
             agent = get_agent_by_name("Ops")
-            assumptions.append(f"Unknown agent requested, defaulting to Ops")
+            assumptions.append("Agent lookup failed, defaulting to Ops")
         
         # Emit which agent is handling
-        yield f"data: {json.dumps({'type': 'delta', 'content': f'[{agent_name}] '})}\n\n"
+        agent_prefix = f"[{agent_name}] "
+        yield f"data: {json.dumps({'type': 'delta', 'content': agent_prefix})}\n\n"
+        full_content += agent_prefix
         
         # Run the agent
         agent_result = await agent.arun(message)
         
         # Stream the response content
+        response_content = ""
         if hasattr(agent_result, 'content'):
             content = agent_result.content
             if isinstance(content, str):
+                response_content = content
                 # Stream in chunks for better UX
                 words = content.split(' ')
                 for i, word in enumerate(words):
-                    yield f"data: {json.dumps({'type': 'delta', 'content': word + (' ' if i < len(words) - 1 else '')})}\n\n"
+                    chunk = word + (' ' if i < len(words) - 1 else '')
+                    yield f"data: {json.dumps({'type': 'delta', 'content': chunk})}\n\n"
+                    full_content += chunk
                     await asyncio.sleep(0.02)  # Small delay for streaming effect
         
-        # Extract next actions from the response
-        next_actions = extract_next_actions(agent_result)
+        # Extract next_actions and assumptions from the response
+        next_actions = extract_next_actions(response_content)
+        extracted_assumptions = extract_assumptions(response_content)
+        assumptions.extend(extracted_assumptions)
         
-        # Final event
+        # Ensure next_actions is never empty (contract requirement)
+        if not next_actions:
+            next_actions = ["Review the response and determine appropriate follow-up"]
+            assumptions.append("No explicit next actions found in agent response")
+        
+        # Build contract-compliant final event with payload wrapper
         final_event = {
             "type": "final",
-            "active_agent": agent_name,
+            "payload": {
+                "version": AGNO_CONTRACT_VERSION,
+                "agent": agent_name,
+                "content": full_content,
+                "next_actions": next_actions,
+            }
         }
-        if next_actions:
-            final_event["next_actions"] = next_actions
+        
+        # Only include assumptions if non-empty
         if assumptions:
-            final_event["assumptions"] = assumptions
+            final_event["payload"]["assumptions"] = assumptions
         
         yield f"data: {json.dumps(final_event)}\n\n"
         yield "data: [DONE]\n\n"
         
     except Exception as e:
-        # Error handling
+        # Error handling - still emit contract-compliant response
         error_msg = str(e)
-        yield f"data: {json.dumps({'type': 'delta', 'content': f'Error: {error_msg}'})}\n\n"
-        yield f"data: {json.dumps({'type': 'final', 'assumptions': ['An error occurred during processing']})}\n\n"
+        error_content = f"Error: {error_msg}"
+        
+        yield f"data: {json.dumps({'type': 'delta', 'content': error_content})}\n\n"
+        
+        # Error fallback is still contract-compliant
+        error_final = {
+            "type": "final",
+            "payload": {
+                "version": AGNO_CONTRACT_VERSION,
+                "agent": "Systems",
+                "content": error_content,
+                "assumptions": ["An error occurred during processing", error_msg],
+                "next_actions": [
+                    "Retry the request",
+                    "Check the Hub logs for details",
+                    "Contact support if the issue persists",
+                ],
+            }
+        }
+        
+        yield f"data: {json.dumps(error_final)}\n\n"
         yield "data: [DONE]\n\n"
 
 
-def extract_next_actions(result) -> list[str]:
-    """Extract next actions from agent response."""
+def extract_next_actions(content: str) -> list[str]:
+    """
+    Extract next actions from agent response.
+    
+    Looks for patterns like:
+    - "Next actions:"
+    - "Next steps:"
+    - Numbered or bulleted lists following these headers
+    """
     actions = []
     
-    if hasattr(result, 'content'):
-        content = result.content
-        if isinstance(content, str):
-            # Look for "Next actions:" or similar patterns
-            lines = content.split('\n')
-            in_actions = False
-            for line in lines:
-                line_lower = line.lower().strip()
-                if 'next action' in line_lower or 'next step' in line_lower:
-                    in_actions = True
+    if not content:
+        return actions
+    
+    lines = content.split('\n')
+    in_actions = False
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        
+        # Detect start of next actions section
+        if 'next action' in line_lower or 'next step' in line_lower:
+            in_actions = True
+            # Check if action is on same line after colon
+            if ':' in line:
+                after_colon = line.split(':', 1)[1].strip()
+                if after_colon and not after_colon.startswith('-'):
+                    # Single action on same line
                     continue
-                if in_actions and line.strip().startswith(('-', '•', '*', '1', '2', '3')):
-                    action = line.strip().lstrip('-•*0123456789. ')
-                    if action:
-                        actions.append(action)
-                elif in_actions and not line.strip():
-                    break
+            continue
+        
+        # Extract action items
+        if in_actions:
+            stripped = line.strip()
+            if not stripped:
+                # Empty line might end the section
+                continue
+            
+            # Match numbered items (1. 2. 3.) or bullets (- * •)
+            if re.match(r'^[\d]+[.\)]\s*', stripped) or stripped.startswith(('-', '*', '•')):
+                # Remove the prefix
+                action = re.sub(r'^[\d]+[.\)]\s*', '', stripped)
+                action = action.lstrip('-*• ').strip()
+                if action:
+                    actions.append(action)
+            elif stripped.startswith('**') and stripped.endswith('**'):
+                # Bold item without bullet
+                action = stripped.strip('*').strip()
+                if action:
+                    actions.append(action)
+            elif not any(c in stripped.lower() for c in [':', '##']):
+                # Might be a continuation - skip headers
+                pass
     
     return actions[:5]  # Cap at 5 actions
+
+
+def extract_assumptions(content: str) -> list[str]:
+    """
+    Extract assumptions from agent response.
+    
+    Looks for patterns like:
+    - "Assumptions:"
+    - "I'm assuming..."
+    - Bulleted lists following these headers
+    """
+    assumptions = []
+    
+    if not content:
+        return assumptions
+    
+    lines = content.split('\n')
+    in_assumptions = False
+    
+    for line in lines:
+        line_lower = line.lower().strip()
+        
+        # Detect start of assumptions section
+        if 'assumption' in line_lower:
+            in_assumptions = True
+            continue
+        
+        # Detect end (new section header)
+        if in_assumptions and line.strip().startswith('#'):
+            in_assumptions = False
+            continue
+        
+        if in_assumptions and 'next action' in line_lower:
+            in_assumptions = False
+            continue
+        
+        # Extract assumption items
+        if in_assumptions:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            
+            # Match bullets (- * •)
+            if stripped.startswith(('-', '*', '•')):
+                assumption = stripped.lstrip('-*• ').strip()
+                if assumption:
+                    assumptions.append(assumption)
+    
+    return assumptions[:5]  # Cap at 5 assumptions
 
 
 if __name__ == "__main__":

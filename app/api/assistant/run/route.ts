@@ -3,10 +3,17 @@
  * 
  * Main entry point for the LifeRX Brain.
  * Proxies requests to the remote Agno Hub with streaming support.
+ * Validates all responses against the Agent Contract.
  */
 
 import { NextRequest } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
+import {
+  validateAgentResponse,
+  createFallbackResponse,
+  AGNO_CONTRACT_VERSION,
+} from '@/lib/agno/contract';
+import type { HubEvent, HubEventFinal } from '@/lib/agno/events';
 
 // Environment configuration
 const AGNO_HUB_URL = process.env.AGNO_HUB_URL;
@@ -19,6 +26,9 @@ interface RequestBody {
   messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
   user?: { id?: string; email?: string };
 }
+
+// Contract violation counter for monitoring
+let contractViolationCount = 0;
 
 export async function POST(request: NextRequest) {
   // =========================================
@@ -103,8 +113,8 @@ export async function POST(request: NextRequest) {
   // 4. Check if Agno Hub is configured
   // =========================================
   if (!AGNO_HUB_URL) {
-    // Return a simulated response for development
-    const responseContent = `[Development Mode] Agno Hub not configured. 
+    // Return a simulated response for development (contract-compliant)
+    const responseContent = `[Development Mode] Agno Hub not configured.
 
 Your message: "${messages[messages.length - 1]?.content}"
 
@@ -121,16 +131,27 @@ Session: ${sessionId}`;
         // Simulate streaming
         const words = responseContent.split(' ');
         for (const word of words) {
-          const event = { type: 'delta', content: word + ' ' };
+          const event: HubEvent = { type: 'delta', content: word + ' ' };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
           await new Promise(resolve => setTimeout(resolve, 30));
         }
         
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ 
-          type: 'final', 
-          next_actions: ['Deploy Agno Hub to Railway', 'Configure AGNO_HUB_URL'],
-          assumptions: ['Running in development mode without Agno Hub']
-        })}\n\n`));
+        // Emit contract-compliant final event
+        const finalEvent: HubEventFinal = {
+          type: 'final',
+          payload: {
+            version: AGNO_CONTRACT_VERSION,
+            agent: 'Systems',
+            content: responseContent,
+            assumptions: ['Running in development mode without Agno Hub'],
+            next_actions: [
+              'Deploy Agno Hub to Railway',
+              'Configure AGNO_HUB_URL in .env.local',
+              'Set matching INTERNAL_SHARED_SECRET',
+            ],
+          },
+        };
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(finalEvent)}\n\n`));
         controller.enqueue(encoder.encode('data: [DONE]\n\n'));
         controller.close();
       }
@@ -146,7 +167,7 @@ Session: ${sessionId}`;
   }
   
   // =========================================
-  // 5. Proxy to Agno Hub
+  // 5. Proxy to Agno Hub with Contract Validation
   // =========================================
   try {
     const hubResponse = await fetch(`${AGNO_HUB_URL}/run`, {
@@ -179,26 +200,68 @@ Session: ${sessionId}`;
       );
     }
     
-    // Create a transform stream to intercept and persist the response
+    // Create a transform stream with contract validation
     let fullAssistantResponse = '';
+    const encoder = new TextEncoder();
+    
     const transformStream = new TransformStream({
       transform(chunk, controller) {
-        // Pass through the chunk
-        controller.enqueue(chunk);
-        
-        // Try to parse and accumulate assistant content
         const text = new TextDecoder().decode(chunk);
         const lines = text.split('\n');
+        
         for (const line of lines) {
-          if (line.startsWith('data: ') && !line.includes('[DONE]')) {
-            try {
-              const event = JSON.parse(line.slice(6));
-              if (event.type === 'delta' && event.content) {
-                fullAssistantResponse += event.content;
-              }
-            } catch {
-              // Ignore parse errors
+          if (!line.startsWith('data: ') || line.includes('[DONE]')) {
+            // Pass through non-event lines (including [DONE])
+            if (line.trim()) {
+              controller.enqueue(encoder.encode(line + '\n'));
             }
+            continue;
+          }
+          
+          try {
+            const event = JSON.parse(line.slice(6)) as HubEvent;
+            
+            // Accumulate delta content
+            if (event.type === 'delta' && 'content' in event) {
+              fullAssistantResponse += event.content;
+              controller.enqueue(chunk);
+            }
+            // Validate final event payload
+            else if (event.type === 'final') {
+              const finalEvent = event as HubEventFinal;
+              const validation = validateAgentResponse(finalEvent.payload);
+              
+              if (!validation.valid) {
+                // CONTRACT VIOLATION - log and emit fallback
+                contractViolationCount++;
+                console.error(
+                  `[CONTRACT VIOLATION #${contractViolationCount}]`,
+                  'Session:', sessionId,
+                  'Errors:', validation.errors
+                );
+                
+                // Create fallback response
+                const fallback = createFallbackResponse(validation.errors);
+                const fallbackEvent: HubEventFinal = {
+                  type: 'final',
+                  payload: fallback,
+                };
+                
+                controller.enqueue(
+                  encoder.encode(`data: ${JSON.stringify(fallbackEvent)}\n\n`)
+                );
+              } else {
+                // Valid - pass through
+                controller.enqueue(chunk);
+              }
+            }
+            // Pass through other event types
+            else {
+              controller.enqueue(chunk);
+            }
+          } catch {
+            // JSON parse error - pass through raw
+            controller.enqueue(chunk);
           }
         }
       },

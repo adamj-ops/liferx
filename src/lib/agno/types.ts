@@ -1,12 +1,32 @@
 /**
- * Canonical Hub event schema for SSE streaming.
- * This contract is locked in to prevent UI assumptions and event drift.
+ * LifeRX Agno Types
+ * 
+ * Re-exports from contract and events modules for backwards compatibility.
+ * New code should import directly from contract.ts or events.ts.
  */
-export type HubEvent =
-  | { type: 'delta'; content: string }
-  | { type: 'tool_start'; tool: string; args?: unknown }
-  | { type: 'tool_result'; tool: string; explainability?: unknown; writes?: unknown; data?: unknown }
-  | { type: 'final'; next_actions?: string[]; assumptions?: string[]; active_agent?: string };
+
+// Re-export contract types
+export {
+  AGNO_CONTRACT_VERSION,
+  AGENT_NAMES,
+  type AgentName,
+  type AgentResponse,
+  type ValidationResult,
+  validateAgentResponse,
+  createFallbackResponse,
+  isAgentName,
+} from './contract';
+
+// Re-export event types
+export {
+  type HubEvent,
+  type HubEventDelta,
+  type HubEventToolStart,
+  type HubEventToolResult,
+  type HubEventFinal,
+  isHubEvent,
+  parseSSEEvent,
+} from './events';
 
 /**
  * Chat message structure for UI state.
@@ -18,6 +38,7 @@ export interface ChatMessage {
   timestamp: string;
   nextActions?: string[];
   assumptions?: string[];
+  agent?: string;
 }
 
 /**
@@ -64,4 +85,3 @@ export interface ToolResponse<T = unknown> {
   }>;
   dryRun?: boolean;
 }
-

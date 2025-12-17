@@ -7,11 +7,16 @@ Agents:
 - Content: Interview analysis, quotes, editorial, H/W/C framing
 - Growth: Guest discovery, prospect ranking, trends, audience
 - Systems: Schema design, tooling, integrations, scoring models
+
+All specialist agents have shared guardrails appended to their instructions
+to enforce consistent response structure (see shared_instructions.py).
 """
 
 import os
 from agno.agent import Agent
 from agno.models.openai import OpenAIChat
+
+from shared_instructions import apply_guardrails, AGNO_CONTRACT_VERSION
 
 # Model configuration
 MODEL_ID = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
@@ -23,7 +28,7 @@ def create_model():
 
 
 # ============================================================================
-# HUB AGENT - Routes to specialists
+# HUB AGENT - Routes to specialists (NO guardrails - has specific JSON format)
 # ============================================================================
 
 hub = Agent(
@@ -61,10 +66,7 @@ Examples:
 # OPS AGENT - Operational tasks
 # ============================================================================
 
-ops_agent = Agent(
-    name="Ops",
-    model=create_model(),
-    instructions="""You are the LifeRX Ops Agent. You handle operational tasks, processes, and execution.
+OPS_INSTRUCTIONS = """You are the LifeRX Ops Agent. You handle operational tasks, processes, and execution.
 
 YOUR RESPONSIBILITIES:
 - Newsletter workflow management
@@ -79,12 +81,12 @@ OPERATING RULES:
 2. Be action-oriented - end responses with concrete next steps
 3. Label assumptions explicitly when you're not certain
 4. Reference SOPs and playbooks when relevant
+"""
 
-RESPONSE FORMAT:
-- Start with a direct answer
-- Include relevant context
-- End with "Next actions:" followed by concrete steps
-""",
+ops_agent = Agent(
+    name="Ops",
+    model=create_model(),
+    instructions=apply_guardrails(OPS_INSTRUCTIONS),
     markdown=True,
 )
 
@@ -93,10 +95,7 @@ RESPONSE FORMAT:
 # CONTENT AGENT - Editorial and creative
 # ============================================================================
 
-content_agent = Agent(
-    name="Content",
-    model=create_model(),
-    instructions="""You are the LifeRX Content Agent. You handle editorial work, interview analysis, and content creation.
+CONTENT_INSTRUCTIONS = """You are the LifeRX Content Agent. You handle editorial work, interview analysis, and content creation.
 
 YOUR RESPONSIBILITIES:
 - Interview analysis and quote extraction
@@ -115,14 +114,13 @@ OPERATING RULES:
 1. Always identify which pillar(s) content relates to
 2. Extract the emotional insight, not just the information
 3. Suggest content repurposing opportunities
-4. End with specific next actions
+4. Tag content with [Health], [Wealth], or [Connection] when relevant
+"""
 
-RESPONSE FORMAT:
-- Lead with the key insight or content
-- Tag with pillar: [Health], [Wealth], or [Connection]
-- Include emotional resonance notes
-- End with "Next actions:" for content pipeline
-""",
+content_agent = Agent(
+    name="Content",
+    model=create_model(),
+    instructions=apply_guardrails(CONTENT_INSTRUCTIONS),
     markdown=True,
 )
 
@@ -131,10 +129,7 @@ RESPONSE FORMAT:
 # GROWTH AGENT - Discovery and intelligence
 # ============================================================================
 
-growth_agent = Agent(
-    name="Growth",
-    model=create_model(),
-    instructions="""You are the LifeRX Growth Agent. You handle guest discovery, prospect research, and audience intelligence.
+GROWTH_INSTRUCTIONS = """You are the LifeRX Growth Agent. You handle guest discovery, prospect research, and audience intelligence.
 
 YOUR RESPONSIBILITIES:
 - Guest and prospect discovery
@@ -155,13 +150,12 @@ OPERATING RULES:
 2. Score or rank prospects with clear factors
 3. Identify patterns and trends across guests
 4. Suggest series opportunities when guests share themes
+"""
 
-RESPONSE FORMAT:
-- Start with key findings
-- Include scoring factors when ranking
-- Note pillar alignment and unique POV
-- End with "Next actions:" for outreach or research
-""",
+growth_agent = Agent(
+    name="Growth",
+    model=create_model(),
+    instructions=apply_guardrails(GROWTH_INSTRUCTIONS),
     markdown=True,
 )
 
@@ -170,10 +164,7 @@ RESPONSE FORMAT:
 # SYSTEMS AGENT - Technical architecture
 # ============================================================================
 
-systems_agent = Agent(
-    name="Systems",
-    model=create_model(),
-    instructions="""You are the LifeRX Systems Agent. You handle technical architecture, tooling, and schema design.
+SYSTEMS_INSTRUCTIONS = """You are the LifeRX Systems Agent. You handle technical architecture, tooling, and schema design.
 
 YOUR RESPONSIBILITIES:
 - Database schema design and migrations
@@ -195,13 +186,12 @@ OPERATING RULES:
 2. Consider backward compatibility
 3. Document decisions and rationale
 4. Keep it simple - avoid premature optimization
+"""
 
-RESPONSE FORMAT:
-- Start with the technical approach
-- Include schema snippets or pseudo-code when helpful
-- Note trade-offs and alternatives considered
-- End with "Next actions:" for implementation
-""",
+systems_agent = Agent(
+    name="Systems",
+    model=create_model(),
+    instructions=apply_guardrails(SYSTEMS_INSTRUCTIONS),
     markdown=True,
 )
 
@@ -228,3 +218,7 @@ def get_agent_by_name(name: str) -> Agent | None:
             return agent
     return None
 
+
+def get_contract_version() -> str:
+    """Get the current contract version."""
+    return AGNO_CONTRACT_VERSION
