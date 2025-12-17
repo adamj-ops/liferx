@@ -64,6 +64,7 @@ export default function BrainChat() {
   const toolParts = useToolParts();
   const showToolPanel = useShowToolPanel();
   const { sessionId, toggleToolPanel, clearMessages } = useChatStore();
+  const { sidebarOpen, toggleSidebar } = useToolLibraryStore();
 
   const chatHistory = useMemo(
     () =>
@@ -86,11 +87,23 @@ export default function BrainChat() {
 
   return (
     <div className="flex h-dvh bg-background">
+      {/* Tool Library Sidebar */}
+      <ToolLibrarySidebar />
+
       {/* Main Chat Area */}
       <div className="relative flex flex-1 flex-col">
         {/* Header */}
         <header className="flex h-14 shrink-0 items-center justify-between border-b px-4">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleSidebar}
+              className={sidebarOpen ? 'bg-accent' : ''}
+            >
+              <Library className="mr-2 h-3.5 w-3.5" />
+              Tools
+            </Button>
             <span className="text-lg font-semibold">LifeRX Brain</span>
           </div>
           <div className="flex items-center gap-2">
@@ -329,7 +342,10 @@ export default function BrainChat() {
         </div>
       </div>
 
-      {/* Tool Panel */}
+      {/* Tool Config Panel - for manual tool execution */}
+      <ToolConfigPanel />
+
+      {/* Tool Activity Panel - for AI tool calls */}
       {showToolPanel && toolParts.length > 0 && (
         <div className="hidden w-80 flex-col border-l md:flex">
           <div className="flex h-14 items-center border-b px-4">
