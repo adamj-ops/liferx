@@ -49,20 +49,51 @@
 - [x] Dockerfile for Railway
 - [x] README with deployment steps
 
-## 🔲 Phase 7: Deployment (PENDING)
-- [ ] Deploy Agno Hub to Railway
-- [ ] Configure environment variables
-- [ ] Connect Next.js to Hub
-- [ ] End-to-end test
+## ✅ Phase 7: Deployment (COMPLETE)
+- [x] Deploy Agno Hub to Railway
+  - URL: https://alert-patience-production.up.railway.app
+  - Environment: OPENAI_API_KEY, INTERNAL_SHARED_SECRET, TOOL_API_URL
+- [x] Deploy Next.js to Vercel
+  - URL: https://liferx-opsfx.vercel.app
+  - Environment: Supabase keys, AGNO_HUB_URL, INTERNAL_SHARED_SECRET, ENABLE_OPERATOR_MODE
+- [x] Connect Next.js to Hub via AGNO_HUB_URL
+- [x] End-to-end test: chat → streaming → persistence → UI render
 
-## 🔲 Phase 8: Polish (FUTURE)
-- [ ] Improved chat UI styling
-- [ ] Loading states and animations
-- [ ] Error handling UX
-- [ ] Session history UI
-- [ ] Tool activity indicators
+## ✅ Phase 8: Polish (COMPLETE)
+- [x] Ops hardening: runtime config logging and validation
+- [x] Better error messages with user-friendly text
+- [x] Tool error handling in chat store
+- [x] Error banner display with dismiss button
+- [x] Tool status indicators (success/pending/error counts)
+- [x] Loading UX with animated spinners
+- [x] Color-coded tool states in header button
+
+## Deployment Summary
+
+| Service | Platform | URL | Status |
+|---------|----------|-----|--------|
+| Agno Hub | Railway | https://alert-patience-production.up.railway.app | ✅ Healthy |
+| Next.js App | Vercel | https://liferx-opsfx.vercel.app | ✅ Production |
+| Database | Supabase | avzjjydhjqtsizexjpm.supabase.co | ✅ Connected |
+
+## Environment Variables
+
+### Railway (Agno Hub)
+- `OPENAI_API_KEY` - OpenAI API key
+- `INTERNAL_SHARED_SECRET` - Shared secret for Next.js ↔ Hub auth
+- `TOOL_API_URL` - Next.js tools endpoint (https://liferx-opsfx.vercel.app/api/tools/execute)
+- `OPENAI_MODEL` (optional) - Model to use (default: gpt-4)
+
+### Vercel (Next.js)
+- `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase anon key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (server-side)
+- `AGNO_HUB_URL` - Railway Agno Hub URL
+- `INTERNAL_SHARED_SECRET` - Matching secret with Railway
+- `ENABLE_OPERATOR_MODE` - Set to "true" for unauthenticated access
 
 ## Notes
 - All TypeScript compiles without errors
 - Migrations applied successfully to Supabase
-- System ready for Railway + Vercel deployment
+- System fully deployed and operational
+- End-to-end chat flow tested and working
