@@ -105,24 +105,65 @@
 
 ---
 
+## ✅ Phase 11: Pipeline 1 - Guest Intelligence & Enrichment (COMPLETE)
+- [x] Prompt 1: Guest Core Schema & Upsert
+  - [x] Add org_id, full_name, primary_role, has_podcast, socials to guests table
+  - [x] Add unique constraint on (org_id, full_name)
+  - [x] Update guests.upsert_guest v2.0 with name normalization, org-scoping
+  - [x] Detect has_podcast from socials
+- [x] Prompt 2: External Profile Enrichment
+  - [x] Create guests.enrich_profiles tool
+  - [x] Stub external source checks (LinkedIn, website, podcast)
+  - [x] Calculate social_presence_strength
+  - [x] Store enrichment metadata
+- [x] Prompt 3: Guest Persona Generator
+  - [x] Enhance guest_personas table with org_id, summary, beliefs, expertise, unique_povs
+  - [x] Create guest_personas.upsert tool
+  - [x] RAG-powered persona generation via brain.search
+  - [x] AI analysis of quotes and content
+- [x] Prompt 4: Guest Scoring Integration
+  - [x] Update scoring.score_guest v3.0
+  - [x] Add has_podcast bonus (10%)
+  - [x] Add persona_clarity bonus (5%)
+  - [x] Add social_presence bonus (5%)
+  - [x] auto_enrich option for automatic data fetching
+
+**Pipeline 1 Delivers:**
+- Structured guest records with canonical identity
+- External enrichment capability
+- Clear personas (beliefs, POVs, expertise)
+- Defensible ranking with explainability
+
+---
+
 ## Next Steps (Future Phases)
 
-### Phase 11: Knowledge Base Population
+### Phase 12: Pipeline 2 - Interview Intelligence (Planned)
+- [ ] Interview Auto-Tagging
+- [ ] Defining Quote Extraction
+- [ ] Guest Linking
+
+### Phase 13: Pipeline 3 - Content Factory (Planned)
+- [ ] Carousel generator
+- [ ] Newsletter builder
+- [ ] Quote card generator
+
+### Phase 14: Knowledge Base Population
 - [ ] Ingest existing ai_docs into ai_chunks
 - [ ] Set up automatic ingestion for new documents
 - [ ] Create ingestion dashboard/admin UI
 
-### Phase 12: Session History UI
+### Phase 15: Session History UI
 - [ ] Display past conversations
 - [ ] Resume previous sessions
 - [ ] Session search/filtering
 
-### Phase 13: User Authentication
+### Phase 16: User Authentication
 - [ ] Connect auth to chat sessions
 - [ ] User-scoped data access
 - [ ] Session ownership
 
-### Phase 14: Advanced Features
+### Phase 17: Advanced Features
 - [ ] Multi-turn tool conversations
 - [ ] Tool chaining
 - [ ] Scheduled tasks/workflows
