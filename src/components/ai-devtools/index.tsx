@@ -204,7 +204,7 @@ function ToolEventItem({ event }: ToolEventItemProps) {
       {isExpanded && (
         <div className="border-t px-2 py-2 text-xs">
           <div className="space-y-2">
-            {event.args && (
+            {event.args !== undefined && event.args !== null && (
               <div>
                 <div className="font-medium text-muted-foreground">Input</div>
                 <pre className="mt-1 overflow-auto rounded bg-muted p-2 text-[10px]">
@@ -212,7 +212,7 @@ function ToolEventItem({ event }: ToolEventItemProps) {
                 </pre>
               </div>
             )}
-            {event.data && (
+            {event.data !== undefined && event.data !== null && (
               <div>
                 <div className="font-medium text-muted-foreground">Output</div>
                 <pre className="mt-1 overflow-auto rounded bg-muted p-2 text-[10px]">
@@ -220,7 +220,7 @@ function ToolEventItem({ event }: ToolEventItemProps) {
                 </pre>
               </div>
             )}
-            {event.explainability && (
+            {event.explainability !== undefined && event.explainability !== null && (
               <div>
                 <div className="font-medium text-muted-foreground">Explainability</div>
                 <pre className="mt-1 overflow-auto rounded bg-muted p-2 text-[10px]">
