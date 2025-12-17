@@ -93,26 +93,32 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
   const writes = result?.writes;
 
   const handleRun = async () => {
-    // Check if tool has backend implementation
-    if (!selectedTool.toolName) {
-      failExecution('This tool is not yet implemented. Check back soon!');
-      return;
+    try {
+      // Check if tool has backend implementation
+      if (!selectedTool.toolName) {
+        failExecution('This tool is not yet implemented. Check back soon!');
+        return;
+      }
+
+      // Validate required parameters
+      const missingRequired = selectedTool.parameters
+        .filter((p) => p.required && parameterValues[p.name] === undefined)
+        .map((p) => p.label);
+
+      if (missingRequired.length > 0) {
+        failExecution(`Missing required parameters: ${missingRequired.join(', ')}`);
+        return;
+      }
+
+      // Execute tool via API
+      console.log('[ToolConfigPanel] Executing tool:', selectedTool.toolName, parameterValues);
+      await executeWithState(selectedTool.toolName, parameterValues, {
+        allowWrites: selectedTool.requiresWrites,
+      });
+    } catch (err) {
+      console.error('[ToolConfigPanel] Error executing tool:', err);
+      failExecution(err instanceof Error ? err.message : 'Unknown error occurred');
     }
-
-    // Validate required parameters
-    const missingRequired = selectedTool.parameters
-      .filter((p) => p.required && parameterValues[p.name] === undefined)
-      .map((p) => p.label);
-
-    if (missingRequired.length > 0) {
-      failExecution(`Missing required parameters: ${missingRequired.join(', ')}`);
-      return;
-    }
-
-    // Execute tool via API
-    await executeWithState(selectedTool.toolName, parameterValues, {
-      allowWrites: selectedTool.requiresWrites,
-    });
   };
 
   const handleClose = () => {
@@ -323,7 +329,7 @@ export function ToolConfigPanel({ className }: ToolConfigPanelProps) {
         </Button>
         <Button
           size="sm"
-          onClick={handleRun}
+          onClick={() => void handleRun()}
           disabled={isExecuting || selectedTool.status === 'coming_soon'}
           className="flex-1 gap-1.5"
         >

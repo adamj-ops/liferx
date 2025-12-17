@@ -8,6 +8,8 @@ import {
   useIsLoading,
   useToolParts,
   useShowToolPanel,
+  useError,
+  useToolEvents,
 } from '@/lib/chat/store';
 import { useToolLibraryStore } from '@/lib/tools/catalog';
 import { sendMessage } from '@/lib/chat/send-message';
@@ -48,23 +50,37 @@ import { Loader } from '@/components/ai-elements/loader';
 import { ToolLibrarySidebar, ToolConfigPanel } from '@/components/tool-library';
 import { Button } from '@/components/ui/button';
 import {
+  AlertTriangle,
+  CheckCircle2,
   ChevronRight,
   Globe,
   Library,
+  Loader2,
   Mic,
   Plus,
   RotateCcw,
   Sparkles,
   Wrench,
+  XCircle,
 } from 'lucide-react';
 
 export default function BrainChat() {
   const messages = useMessages();
   const isLoading = useIsLoading();
   const toolParts = useToolParts();
+  const toolEvents = useToolEvents();
   const showToolPanel = useShowToolPanel();
-  const { sessionId, toggleToolPanel, clearMessages } = useChatStore();
+  const error = useError();
+  const { sessionId, toggleToolPanel, clearMessages, setError } = useChatStore();
   const { sidebarOpen, toggleSidebar } = useToolLibraryStore();
+  
+  // Calculate tool status counts
+  const toolStatusCounts = useMemo(() => {
+    const pending = toolEvents.filter(e => e.status === 'pending').length;
+    const success = toolEvents.filter(e => e.status === 'success').length;
+    const errorCount = toolEvents.filter(e => e.status === 'error').length;
+    return { pending, success, error: errorCount };
+  }, [toolEvents]);
 
   const chatHistory = useMemo(
     () =>
@@ -114,15 +130,44 @@ export default function BrainChat() {
               </Button>
             )}
             {toolParts.length > 0 && (
-              <Button variant="ghost" size="sm" onClick={toggleToolPanel}>
-                <Wrench className="mr-2 h-3.5 w-3.5" />
-                {toolParts.length}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={toggleToolPanel}
+                className={toolStatusCounts.error > 0 ? 'text-destructive' : toolStatusCounts.pending > 0 ? 'text-yellow-600' : 'text-green-600'}
+              >
+                {toolStatusCounts.pending > 0 ? (
+                  <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                ) : toolStatusCounts.error > 0 ? (
+                  <XCircle className="mr-2 h-3.5 w-3.5" />
+                ) : (
+                  <CheckCircle2 className="mr-2 h-3.5 w-3.5" />
+                )}
+                {toolParts.length} tool{toolParts.length !== 1 ? 's' : ''}
               </Button>
             )}
             <ThemeToggle />
           </div>
         </header>
 
+        {/* Error Banner */}
+        {error && (
+          <div className="flex items-center justify-between gap-4 border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>{error}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setError(null)}
+              className="h-6 px-2 text-destructive hover:bg-destructive/20 hover:text-destructive"
+            >
+              Dismiss
+            </Button>
+          </div>
+        )}
+        
         {/* Chat Container - Centered */}
         <div className="flex flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
@@ -348,10 +393,31 @@ export default function BrainChat() {
       {/* Tool Activity Panel - for AI tool calls */}
       {showToolPanel && toolParts.length > 0 && (
         <div className="hidden w-80 flex-col border-l md:flex">
-          <div className="flex h-14 items-center border-b px-4">
+          <div className="flex h-14 items-center justify-between border-b px-4">
             <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
               <Wrench className="h-4 w-4" />
               Tool Activity
+            </div>
+            {/* Status Summary */}
+            <div className="flex items-center gap-2 text-xs">
+              {toolStatusCounts.success > 0 && (
+                <span className="flex items-center gap-1 text-green-600">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {toolStatusCounts.success}
+                </span>
+              )}
+              {toolStatusCounts.pending > 0 && (
+                <span className="flex items-center gap-1 text-yellow-600">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {toolStatusCounts.pending}
+                </span>
+              )}
+              {toolStatusCounts.error > 0 && (
+                <span className="flex items-center gap-1 text-destructive">
+                  <XCircle className="h-3 w-3" />
+                  {toolStatusCounts.error}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex-1 space-y-3 overflow-y-auto p-4">
