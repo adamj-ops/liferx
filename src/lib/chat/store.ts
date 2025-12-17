@@ -123,7 +123,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             (part.type === toolType && part.state === 'input-available')) {
           return {
             ...part,
-            state: 'error' as const,
+            state: 'output-error' as const,
             output: undefined,
             errorText: errorMessage,
           };
@@ -263,19 +263,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
         }
         break;
-        
-      case 'tool_error':
-        // Direct tool error event
-        const failedTool = [...state.toolParts]
-          .reverse()
-          .find((p) => p.state === 'input-available');
-        
-        if (failedTool && 'tool' in event) {
-          const errorEvent = event as { tool: string; error?: string };
-          state.setToolError(failedTool.toolCallId, errorEvent.tool, errorEvent.error || 'Tool execution failed');
-        }
-        break;
-        
+
       case 'final':
         if ('next_actions' in event && event.next_actions?.length) {
           state.updateMessage(messageId, {

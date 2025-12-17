@@ -11,7 +11,7 @@ import {
   useError,
   useToolEvents,
 } from '@/lib/chat/store';
-import { useToolLibraryStore } from '@/lib/tools/catalog';
+import { usePromptLibraryStore } from '@/lib/prompts';
 import { sendMessage } from '@/lib/chat/send-message';
 import { AIDevTools } from '@/components/ai-devtools';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -30,13 +30,7 @@ import {
   PromptInputTextarea,
   PromptInputToolbar,
   PromptInputTools,
-  PromptInputButton,
   PromptInputSubmit,
-  PromptInputModelSelect,
-  PromptInputModelSelectTrigger,
-  PromptInputModelSelectContent,
-  PromptInputModelSelectItem,
-  PromptInputModelSelectValue,
 } from '@/components/ai-elements/prompt-input';
 import {
   Tool,
@@ -47,22 +41,27 @@ import {
 } from '@/components/ai-elements/tool';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { Loader } from '@/components/ai-elements/loader';
-import { ToolLibrarySidebar, ToolConfigPanel } from '@/components/tool-library';
+import { PromptLibrarySidebar } from '@/components/prompt-library';
 import { Button } from '@/components/ui/button';
 import {
   AlertTriangle,
   CheckCircle2,
   ChevronRight,
-  Globe,
-  Library,
   Loader2,
-  Mic,
-  Plus,
+  PanelLeft,
   RotateCcw,
-  Sparkles,
   Wrench,
   XCircle,
 } from 'lucide-react';
+
+function withStableDuplicateKeys(values: readonly string[], prefix: string) {
+  const counts = new Map<string, number>();
+  return values.map((value) => {
+    const next = (counts.get(value) ?? 0) + 1;
+    counts.set(value, next);
+    return { key: `${prefix}:${value}:${next}`, value };
+  });
+}
 
 export default function BrainChat() {
   const messages = useMessages();
@@ -72,7 +71,7 @@ export default function BrainChat() {
   const showToolPanel = useShowToolPanel();
   const error = useError();
   const { sessionId, toggleToolPanel, clearMessages, setError } = useChatStore();
-  const { sidebarOpen, toggleSidebar } = useToolLibraryStore();
+  const { sidebarOpen, toggleSidebar } = usePromptLibraryStore();
   
   // Calculate tool status counts
   const toolStatusCounts = useMemo(() => {
@@ -103,8 +102,8 @@ export default function BrainChat() {
 
   return (
     <div className="flex h-dvh bg-background">
-      {/* Tool Library Sidebar */}
-      <ToolLibrarySidebar />
+      {/* Prompt Library Sidebar */}
+      <PromptLibrarySidebar onSendPrompt={handleSendMessage} />
 
       {/* Main Chat Area */}
       <div className="relative flex flex-1 flex-col">
@@ -113,14 +112,14 @@ export default function BrainChat() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
-              size="sm"
+              size="icon"
               onClick={toggleSidebar}
-              className={sidebarOpen ? 'bg-accent' : ''}
+              aria-label={sidebarOpen ? 'Close prompts sidebar' : 'Open prompts sidebar'}
+              title={sidebarOpen ? 'Close prompts sidebar' : 'Open prompts sidebar'}
+              className={`h-8 w-8 ${sidebarOpen ? 'bg-accent' : ''}`}
             >
-              <Library className="mr-2 h-3.5 w-3.5" />
-              Tools
+              <PanelLeft className="h-4 w-4" />
             </Button>
-            <span className="text-lg font-semibold">LifeRX Brain</span>
           </div>
           <div className="flex items-center gap-2">
             {messages.length > 0 && (
@@ -172,17 +171,8 @@ export default function BrainChat() {
         <div className="flex flex-1 flex-col overflow-hidden">
           {messages.length === 0 ? (
             /* Empty State */
-            <div className="flex flex-1 flex-col items-center justify-center px-4">
-              <div className="w-full max-w-2xl space-y-8">
-                <div className="space-y-2 text-center">
-                  <h1 className="text-3xl font-semibold tracking-tight">
-                    What can I help you with?
-                  </h1>
-                  <p className="text-muted-foreground">
-                    Ask about guests, newsletters, outreach, or any LifeRX operation.
-                  </p>
-                </div>
-
+            <div className="flex flex-1 flex-col items-center justify-end px-4 pb-10 sm:px-6 md:px-10">
+              <div className="w-full space-y-6">
                 {/* Input - Empty State */}
                 <PromptInput
                   onSubmit={(e: FormEvent<HTMLFormElement>) => {
@@ -220,37 +210,11 @@ export default function BrainChat() {
                   <PromptInputTextarea
                     placeholder="What would you like to know?"
                     disabled={isLoading}
+                    minHeight={96}
+                    maxHeight={260}
                   />
                   <PromptInputToolbar>
-                    <PromptInputTools>
-                      <PromptInputButton>
-                        <Plus className="size-4" />
-                      </PromptInputButton>
-                      <PromptInputButton>
-                        <Mic className="size-4" />
-                      </PromptInputButton>
-                      <PromptInputButton>
-                        <Globe className="size-4" />
-                        Search
-                      </PromptInputButton>
-                      <PromptInputModelSelect defaultValue="gpt-4">
-                        <PromptInputModelSelectTrigger className="w-auto gap-1">
-                          <Sparkles className="size-4" />
-                          <PromptInputModelSelectValue />
-                        </PromptInputModelSelectTrigger>
-                        <PromptInputModelSelectContent>
-                          <PromptInputModelSelectItem value="gpt-4">
-                            GPT-4
-                          </PromptInputModelSelectItem>
-                          <PromptInputModelSelectItem value="gpt-4-turbo">
-                            GPT-4 Turbo
-                          </PromptInputModelSelectItem>
-                          <PromptInputModelSelectItem value="claude-3">
-                            Claude 3
-                          </PromptInputModelSelectItem>
-                        </PromptInputModelSelectContent>
-                      </PromptInputModelSelect>
-                    </PromptInputTools>
+                    <PromptInputTools />
                     <PromptInputSubmit
                       disabled={isLoading}
                       status={isLoading ? 'streaming' : 'ready'}
@@ -281,8 +245,11 @@ export default function BrainChat() {
                                 Next Actions
                               </div>
                               <ul className="space-y-1 text-sm text-muted-foreground">
-                                {message.nextActions.map((action, i) => (
-                                  <li key={i} className="flex items-start gap-2">
+                                {withStableDuplicateKeys(
+                                  message.nextActions,
+                                  `${message.id}-next-actions`
+                                ).map(({ key, value: action }) => (
+                                  <li key={key} className="flex items-start gap-2">
                                     <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                                     {action}
                                   </li>
@@ -298,8 +265,11 @@ export default function BrainChat() {
                                 Assumptions
                               </div>
                               <ul className="list-disc space-y-1 pl-4 text-sm text-muted-foreground">
-                                {message.assumptions.map((assumption, i) => (
-                                  <li key={i}>{assumption}</li>
+                                {withStableDuplicateKeys(
+                                  message.assumptions,
+                                  `${message.id}-assumptions`
+                                ).map(({ key, value: assumption }) => (
+                                  <li key={key}>{assumption}</li>
                                 ))}
                               </ul>
                             </div>
@@ -345,35 +315,7 @@ export default function BrainChat() {
                       disabled={isLoading}
                     />
                     <PromptInputToolbar>
-                      <PromptInputTools>
-                        <PromptInputButton>
-                          <Plus className="size-4" />
-                        </PromptInputButton>
-                        <PromptInputButton>
-                          <Mic className="size-4" />
-                        </PromptInputButton>
-                        <PromptInputButton>
-                          <Globe className="size-4" />
-                          Search
-                        </PromptInputButton>
-                        <PromptInputModelSelect defaultValue="gpt-4">
-                          <PromptInputModelSelectTrigger className="w-auto gap-1">
-                            <Sparkles className="size-4" />
-                            <PromptInputModelSelectValue />
-                          </PromptInputModelSelectTrigger>
-                          <PromptInputModelSelectContent>
-                            <PromptInputModelSelectItem value="gpt-4">
-                              GPT-4
-                            </PromptInputModelSelectItem>
-                            <PromptInputModelSelectItem value="gpt-4-turbo">
-                              GPT-4 Turbo
-                            </PromptInputModelSelectItem>
-                            <PromptInputModelSelectItem value="claude-3">
-                              Claude 3
-                            </PromptInputModelSelectItem>
-                          </PromptInputModelSelectContent>
-                        </PromptInputModelSelect>
-                      </PromptInputTools>
+                      <PromptInputTools />
                       <PromptInputSubmit
                         disabled={isLoading}
                         status={isLoading ? 'streaming' : 'ready'}
@@ -386,9 +328,6 @@ export default function BrainChat() {
           )}
         </div>
       </div>
-
-      {/* Tool Config Panel - for manual tool execution */}
-      <ToolConfigPanel />
 
       {/* Tool Activity Panel - for AI tool calls */}
       {showToolPanel && toolParts.length > 0 && (

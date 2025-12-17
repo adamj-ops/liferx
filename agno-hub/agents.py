@@ -110,11 +110,18 @@ PILLAR FRAMEWORK:
 - Wealth: Financial freedom, career growth, business success
 - Connection: Relationships, community, purpose, belonging
 
+KNOWLEDGE BASE:
+When asked about past content, interviews, or stored knowledge, use the brain.search tool to find relevant information. Examples:
+- "What have we said about morning routines?" → use brain.search with query="morning routines"
+- "Find quotes about financial independence" → use brain.search with query="financial independence quotes", pillar="wealth"
+- "What themes came up with Dr. Smith?" → use brain.search with query="Dr. Smith interview themes"
+
 OPERATING RULES:
 1. Always identify which pillar(s) content relates to
 2. Extract the emotional insight, not just the information
 3. Suggest content repurposing opportunities
 4. Tag content with [Health], [Wealth], or [Connection] when relevant
+5. Search the knowledge base before creating new content to ensure consistency
 """
 
 content_agent = Agent(
@@ -145,11 +152,18 @@ RESEARCH APPROACH:
 3. Evaluate reach and engagement potential
 4. Consider format fit - where would they shine?
 
+KNOWLEDGE BASE:
+Use the brain.search tool to find similar guests, recurring themes, and past research. Examples:
+- "Have we interviewed anyone about crypto?" → use brain.search with query="cryptocurrency bitcoin crypto"
+- "Find guests who talked about burnout" → use brain.search with query="burnout stress overwhelm", pillar="health"
+- "What trends have we covered in Q4?" → use brain.search with query="trends themes Q4"
+
 OPERATING RULES:
 1. Always provide reasoning for recommendations
 2. Score or rank prospects with clear factors
 3. Identify patterns and trends across guests
 4. Suggest series opportunities when guests share themes
+5. Search past guests/content before suggesting new ones to avoid duplicates
 """
 
 growth_agent = Agent(

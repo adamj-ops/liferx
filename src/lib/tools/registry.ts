@@ -10,6 +10,7 @@ import { ToolDefinition } from './types';
 import { brainUpsertItem } from './implementations/brain-upsert-item';
 import { brainRecordDecision } from './implementations/brain-record-decision';
 import { brainAppendMemory } from './implementations/brain-append-memory';
+import { brainSearch } from './implementations/brain-search';
 import { guestsUpsertGuest } from './implementations/guests-upsert-guest';
 import { interviewsUpsertInterview } from './implementations/interviews-upsert-interview';
 import { interviewsAddQuote } from './implementations/interviews-add-quote';
@@ -34,6 +35,7 @@ function registerTool<T>(tool: ToolDefinition<T>): void {
 registerTool(brainUpsertItem);
 registerTool(brainRecordDecision);
 registerTool(brainAppendMemory);
+registerTool(brainSearch);
 
 // Guest tools
 registerTool(guestsUpsertGuest);

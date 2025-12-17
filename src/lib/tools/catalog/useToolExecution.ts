@@ -81,13 +81,16 @@ export function useToolExecution() {
       args: Record<string, unknown>,
       options: ExecuteOptions = {}
     ): Promise<ToolResponse> => {
+      console.log('[useToolExecution] Starting execution for:', toolName);
       startExecution();
 
       const result = await execute(toolName, args, options);
+      console.log('[useToolExecution] Result:', result);
 
       if (result.success) {
         completeExecution(result);
       } else {
+        console.error('[useToolExecution] Tool failed:', result.error);
         failExecution(result.error?.message || 'Tool execution failed');
       }
 
