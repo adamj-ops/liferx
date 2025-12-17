@@ -27,7 +27,7 @@
 - [x] brain.upsert_item (Decision, SOP, Principle, Playbook)
 - [x] brain.record_decision (Quick decision logging)
 - [x] brain.append_memory (Append-only brain memory)
-- [x] brain.search (Semantic search - NEW)
+- [x] brain.search (Semantic search with intent + logging)
 - [x] guests.upsert_guest
 - [x] interviews.upsert_interview
 - [x] interviews.add_quote
@@ -74,6 +74,25 @@
 - [x] Tool registration and agent instructions
 - [x] Ingestion API endpoint (/api/internal/ingest)
 
+## ✅ Phase 10: RAG Guardrails & Compound Intelligence (COMPLETE)
+- [x] Step A: Retrieval Guardrails
+  - [x] Required intent field (factual_recall, prior_decision, interview_evidence, theme_discovery)
+  - [x] Intent validation in brain.search
+  - [x] Updated Content/Growth agent instructions with search rules
+- [x] Step B: Result Post-Processing
+  - [x] normalizer.ts for transforming chunks to evidence
+  - [x] Group by source, collapse overlaps, extract quotes
+  - [x] normalize option in brain.search
+- [x] Step C: Theme Scanner Integration
+  - [x] Semantic pattern finding via RAG
+  - [x] Topic extraction from interview summaries
+  - [x] Cross-interview pattern detection
+  - [x] Semantic hints in AI prompt
+- [x] Step D: Search Trace Table
+  - [x] ai_search_logs table with indexes
+  - [x] Non-blocking search logging
+  - [x] Intent and latency tracking
+
 ---
 
 ## Deployed Services
@@ -88,22 +107,22 @@
 
 ## Next Steps (Future Phases)
 
-### Phase 10: Knowledge Base Population
+### Phase 11: Knowledge Base Population
 - [ ] Ingest existing ai_docs into ai_chunks
 - [ ] Set up automatic ingestion for new documents
 - [ ] Create ingestion dashboard/admin UI
 
-### Phase 11: Session History UI
+### Phase 12: Session History UI
 - [ ] Display past conversations
 - [ ] Resume previous sessions
 - [ ] Session search/filtering
 
-### Phase 12: User Authentication
+### Phase 13: User Authentication
 - [ ] Connect auth to chat sessions
 - [ ] User-scoped data access
 - [ ] Session ownership
 
-### Phase 13: Advanced Features
+### Phase 14: Advanced Features
 - [ ] Multi-turn tool conversations
 - [ ] Tool chaining
 - [ ] Scheduled tasks/workflows
