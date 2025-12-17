@@ -9,6 +9,7 @@ import {
   useToolParts,
   useShowToolPanel,
 } from '@/lib/chat/store';
+import { useToolLibraryStore } from '@/lib/tools/catalog';
 import { sendMessage } from '@/lib/chat/send-message';
 import { AIDevTools } from '@/components/ai-devtools';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -44,10 +45,12 @@ import {
 } from '@/components/ai-elements/tool';
 import { Suggestions, Suggestion } from '@/components/ai-elements/suggestion';
 import { Loader } from '@/components/ai-elements/loader';
+import { ToolLibrarySidebar, ToolConfigPanel } from '@/components/tool-library';
 import { Button } from '@/components/ui/button';
 import {
   ChevronRight,
   Globe,
+  Library,
   Mic,
   Plus,
   RotateCcw,
