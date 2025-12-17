@@ -41,6 +41,12 @@ def verify_request(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
 
+@app.get("/")
+async def root():
+    """Root endpoint."""
+    return {"status": "ok", "service": "LifeRX Agno Hub", "agents": AGENT_NAMES}
+
+
 @app.get("/health")
 async def health():
     """Health check endpoint."""
@@ -202,4 +208,3 @@ if __name__ == "__main__":
     import uvicorn
     port = int(os.getenv("PORT", 8000))
     uvicorn.run("server:app", host="0.0.0.0", port=port, reload=True)
-
