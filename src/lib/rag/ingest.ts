@@ -174,12 +174,15 @@ export async function ingestDocument(
     };
 
   } catch (error) {
-    // Update document status to failed
-    await supabase
-      .from('ai_docs')
-      .update({ processing_status: 'failed' })
-      .eq('id', documentId)
-      .catch(() => {}); // Ignore errors here
+    // Update document status to failed (ignore any errors from this update)
+    try {
+      await supabase
+        .from('ai_docs')
+        .update({ processing_status: 'failed' })
+        .eq('id', documentId);
+    } catch {
+      // Ignore errors updating status
+    }
 
     return {
       documentId,
